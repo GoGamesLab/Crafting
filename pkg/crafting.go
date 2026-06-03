@@ -3,6 +3,7 @@ package crafting
 import (
 	"math"
 
+	energy "github.com/GoGamesLab/Energy/pkg"
 	"github.com/GoGamesLab/Inventory/pkg/container"
 	materials "github.com/GoGamesLab/Materials/pkg"
 )
@@ -15,12 +16,12 @@ type ProductID uint16
 type Operation struct {
 	ID               OperationID
 	Name             string
-	RequiredTemp     float32 // Condição térmica para manter a reação
-	EnergyCost       float32 // Energia (Joules) necessária para a reação
-	Duration         float32 // Tempo em segundos
-	BaseEnergyChange float32 // Negativo = Consome | Positivo = Produz
-	ActivationTemp   float32 // Temperatura mínima para a reação começar
-	Dissipation      float32 // Índice de dissipação
+	RequiredTemp     float32           // Condição térmica para manter a reação
+	EnergyCost       energy.EnergyUnit // Energia (Joules) necessária para a reação
+	Duration         float32           // Tempo em segundos
+	BaseEnergyChange float32           // Negativo = Consome | Positivo = Produz
+	ActivationTemp   float32           // Temperatura mínima para a reação começar
+	Dissipation      float32           // Índice de dissipação
 }
 
 type MachineType int
