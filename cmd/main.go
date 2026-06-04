@@ -19,7 +19,7 @@ func burnFuel(machineID crafting.MachineID, fuelID materials.MaterialID, amount 
 
 	Logger.Info(fmt.Sprintf("Iniciando combustão: %f unidades de %s na máquina %s", amount, material.Name, machine.Name))
 
-	crafting.Store(&machine, fuelID, amount)
+	crafting.Store(machine, fuelID, amount)
 	for machine.GetSupply().Materials.Items[container.ItemID(fuelID)] > 0 {
 		machine.Update(1)
 		Logger.Info(fmt.Sprintf("🔥 [%s] Temperatura: %.2f°C", machine.Name, machine.Heat))
@@ -49,6 +49,7 @@ func prensaMetais() crafting.Supply {
 		},
 		Input:  materials.MaterialID(materials.PureIronID),
 		Output: materials.MaterialID(materials.PureIronID),
+		Amount: 1,
 	})
 
 	// 2. Instancia uma Prensa Hidráulica/Elétrica (Consome 500 Joules/s, precisa de 50°C para operar)
@@ -79,7 +80,7 @@ func prensaMetais() crafting.Supply {
 
 		// B) O cabo puxa energia do buffer do Reator e tenta empurrar para o buffer da Prensa
 		demand := prensa.Demand() * energy.EnergyUnit(dt)
-		transferred, pipeByproducts, _ := cabo.Transfer(reactor, &prensa, demand)
+		transferred, pipeByproducts, _ := cabo.Transfer(reactor, prensa, demand)
 		for _, b := range pipeByproducts {
 			Logger.Info(fmt.Sprintf("- byproduct %s = %f", b.Type, b.Value))
 		}

@@ -94,17 +94,15 @@ func (m *Machine) Update(dt float32) {
 	for _, step := range m.Procedures {
 		p := step.GetOperation()
 
-		if energyRegime(m, p, dt) {
-			// Check de Ativação
-			if m.Heat >= p.ActivationTemp {
-				// Execução
-				m.executeStep(step, dt)
+		// Check de Ativação
+		if energyRegime(m, p, dt) && m.Heat >= p.ActivationTemp {
+			// Execução
+			m.executeStep(step, dt)
 
-				m.Heat = calculateTemperature(m.Heat, p.BaseEnergyChange*dt, p.Dissipation)
-			} else {
-				// Balanço Térmico
-				m.Heat += p.BaseEnergyChange * dt
-			}
+			m.Heat = calculateTemperature(m.Heat, p.BaseEnergyChange*dt, p.Dissipation)
+		} else {
+			// Balanço Térmico
+			m.Heat += p.BaseEnergyChange * dt
 		}
 	}
 }
