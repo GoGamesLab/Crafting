@@ -26,20 +26,6 @@ type Operation struct {
 	Dissipation      float32           // Índice de dissipação
 }
 
-type MachineType int
-
-const (
-	Manual MachineType = iota
-	Mixer
-	Synthesizer
-	Processor
-	Extruder
-	Laminator
-	Refiner
-	Assembler
-	Smelter
-)
-
 type Procedure interface {
 	GetOperation() Operation
 	Kind() string
