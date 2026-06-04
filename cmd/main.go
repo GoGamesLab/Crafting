@@ -41,7 +41,6 @@ func prensaMetais() crafting.Supply {
 		Operation: crafting.Operation{
 			ID:               prensarMetaisOpID,
 			Name:             "Prensa metais",
-			RequiredTemp:     0,
 			ActivationTemp:   20.0,
 			Duration:         15.0,
 			EnergyCost:       500,
