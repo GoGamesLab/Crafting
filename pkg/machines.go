@@ -4,20 +4,25 @@ import (
 	"fmt"
 	"sync"
 
+	energy "github.com/GoGamesLab/Energy/pkg"
 	container "github.com/GoGamesLab/Inventory/pkg"
 	materials "github.com/GoGamesLab/Materials/pkg"
 )
 
 // Exemplo de ID para o processo
 const (
-	CoalCombustionID     OperationID = 100
-	CrudeOilCombustionID OperationID = 101
+	CoalCombustionID OperationID = iota
+	CrudeOilCombustionID
+	ManualPressBarID
+	ManualPressPlateID
 )
 
 const (
-	EntropyID        MachineID = 0
-	CoalBurnerID     MachineID = 1
-	CrudeOilBurnerID MachineID = 2
+	EntropyID MachineID = iota
+	CoalBurnerID
+	CrudeOilBurnerID
+	IronBarForgerID
+	IronPlateForgerID
 )
 
 var (
@@ -71,6 +76,34 @@ func init() {
 			{Substance: materials.PureSulfurID, Percentual: 3},
 		},
 	})
+	RegisterOperation(TransformOperation{
+		Operation: Operation{
+			ID:               ManualPressBarID,
+			Name:             "Prensa manual de metais em barras",
+			ActivationTemp:   20.0,
+			Duration:         15.0,
+			EnergyCost:       500,
+			BaseEnergyChange: 5.0,
+			Dissipation:      0.1,
+		},
+		Input:  materials.MaterialID(materials.PureIronID),
+		Output: materials.MaterialID(materials.IronBarID),
+		Amount: 1,
+	})
+	RegisterOperation(TransformOperation{
+		Operation: Operation{
+			ID:               ManualPressPlateID,
+			Name:             "Prensa manual de metais em placas",
+			ActivationTemp:   20.0,
+			Duration:         15.0,
+			EnergyCost:       500,
+			BaseEnergyChange: 5.0,
+			Dissipation:      0.1,
+		},
+		Input:  materials.MaterialID(materials.IronBarID),
+		Output: materials.MaterialID(materials.IronPlateID),
+		Amount: 1,
+	})
 
 	RegisterMachine(Machine{
 		ID:         EntropyID,
@@ -97,6 +130,18 @@ func init() {
 		},
 		EnergyManager: nil,
 		EnergyBuffer:  nil,
+	})
+	RegisterMachine(Machine{
+		ID:   IronBarForgerID,
+		Name: "Prensa Manual de Barras",
+		Heat: 25.0, // Temperatura ambiente
+		Procedures: []Procedure{
+			// Operação que custa 500 Joules, mas gera calor interno por atrito (BaseEnergyChange = 5)
+			TransformOperations[ManualPressBarID],
+		},
+		EnergyManager: nil,
+		EnergyBuffer:  energy.NewBattery(2000), // Consegue guardar até 4 ticks de buffer de energia
+		TypeHint:      "electric",
 	})
 }
 
@@ -143,9 +188,11 @@ func RegisterOperation(p Procedure) error {
 	}
 }
 
-func GetMachine(id MachineID) Machine {
+func GetMachine(id MachineID) *Machine {
 	if m, ok := Machines[id]; ok {
-		return m
+		return &m
 	}
-	return Machines[EntropyID] // Fallback seguro
+
+	m := Machines[EntropyID]
+	return &m // Fallback seguro
 }
