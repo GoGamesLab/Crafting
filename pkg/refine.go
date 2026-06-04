@@ -3,7 +3,7 @@ package crafting
 import (
 	"math"
 
-	"github.com/GoGamesLab/Inventory/pkg/container"
+	container "github.com/GoGamesLab/Inventory/pkg"
 	materials "github.com/GoGamesLab/Materials/pkg"
 )
 

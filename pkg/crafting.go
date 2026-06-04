@@ -6,7 +6,7 @@ import (
 	"math"
 
 	energy "github.com/GoGamesLab/Energy/pkg"
-	"github.com/GoGamesLab/Inventory/pkg/container"
+	container "github.com/GoGamesLab/Inventory/pkg"
 	materials "github.com/GoGamesLab/Materials/pkg"
 )
 
