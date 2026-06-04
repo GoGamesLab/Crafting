@@ -48,51 +48,53 @@ type Machine struct {
 	TypeHint      string          // "electric", "kinetic", "heat" -- o que o motor dela aceita
 }
 
+func energyRegime(m *Machine, p Operation, dt float32) (hasEnergy bool) {
+	hasEnergy = true
+	if p.EnergyCost > 0 {
+		needed := p.EnergyCost * energy.EnergyUnit(dt)
+		var consumed energy.EnergyUnit
+
+		if m.EnergyBuffer != nil {
+			// Tenta retirar do buffer interno alimentado por cabos
+			consumed, _ = m.EnergyBuffer.Consume(needed)
+		}
+
+		// Se não havia energia suficiente estocada no cabo/bateria interna,
+		// faz uma requisição direta ao EnergyManager em modo emergencial/contingência
+		if consumed < needed && m.EnergyManager != nil {
+			req := energy.EnergyRequirement{
+				Amount:   needed - consumed,
+				TypeHint: m.TypeHint,
+			}
+			// Passa o ID da própria máquina na lista de nós preferenciais, se aplicável
+			provided, byproducts, err := m.EnergyManager.SatisfyRequirement(req, []string{fmt.Sprint(m.ID)})
+			if err == nil {
+				consumed += provided
+				// Se o conversor elétrico gerou calor residual (perda do motor),
+				// esse calor é transferido diretamente para a estrutura física da máquina!
+				for _, bp := range byproducts {
+					if bp.Type == "heat" {
+						m.Heat += float32(bp.Value)
+					}
+				}
+			}
+		}
+
+		// Se mesmo com a rede a energia foi insuficiente, a máquina engasga (não avança a operação)
+		if consumed < needed {
+			hasEnergy = false
+			// Aqui você pode disparar um log ou evento visual de "Falta de Energia"
+		}
+	}
+
+	return
+}
+
 func (m *Machine) Update(dt float32) {
 	for _, step := range m.Procedures {
 		p := step.GetOperation()
 
-		// Energy regime
-		hasEnergy := true
-		if p.EnergyCost > 0 {
-			needed := p.EnergyCost * energy.EnergyUnit(dt)
-			var consumed energy.EnergyUnit
-
-			if m.EnergyBuffer != nil {
-				// Tenta retirar do buffer interno alimentado por cabos
-				consumed, _ = m.EnergyBuffer.Consume(needed)
-			}
-
-			// Se não havia energia suficiente estocada no cabo/bateria interna,
-			// faz uma requisição direta ao EnergyManager em modo emergencial/contingência
-			if consumed < needed && m.EnergyManager != nil {
-				req := energy.EnergyRequirement{
-					Amount:   needed - consumed,
-					TypeHint: m.TypeHint,
-				}
-				// Passa o ID da própria máquina na lista de nós preferenciais, se aplicável
-				provided, byproducts, err := m.EnergyManager.SatisfyRequirement(req, []string{fmt.Sprint(m.ID)})
-				if err == nil {
-					consumed += provided
-					// Se o conversor elétrico gerou calor residual (perda do motor),
-					// esse calor é transferido diretamente para a estrutura física da máquina!
-					for _, bp := range byproducts {
-						if bp.Type == "heat" {
-							m.Heat += float32(bp.Value)
-						}
-					}
-				}
-			}
-
-			// Se mesmo com a rede a energia foi insuficiente, a máquina engasga (não avança a operação)
-			if consumed < needed {
-				hasEnergy = false
-				// Aqui você pode disparar um log ou evento visual de "Falta de Energia"
-				continue
-			}
-		}
-
-		if hasEnergy {
+		if energyRegime(m, p, dt) {
 			// Check de Ativação
 			if m.Heat >= p.ActivationTemp {
 				// Execução
