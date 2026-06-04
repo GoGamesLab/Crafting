@@ -2,6 +2,7 @@ package crafting
 
 import (
 	"errors"
+	"fmt"
 	"math"
 
 	energy "github.com/GoGamesLab/Energy/pkg"
@@ -93,7 +94,7 @@ func (m *Machine) Update(dt float32) {
 					TypeHint: m.TypeHint,
 				}
 				// Passa o ID da própria máquina na lista de nós preferenciais, se aplicável
-				provided, byproducts, err := m.EnergyManager.SatisfyRequirement(req, []string{string(m.ID)})
+				provided, byproducts, err := m.EnergyManager.SatisfyRequirement(req, []string{fmt.Sprint(m.ID)})
 				if err == nil {
 					consumed += provided
 					// Se o conversor elétrico gerou calor residual (perda do motor),

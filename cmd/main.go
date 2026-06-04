@@ -36,9 +36,10 @@ func prensaMetais() crafting.Supply {
 	reactor.AddFuel(1000) // Adiciona combustível bruto
 	energyManager.RegisterNode("reactor-1", reactor)
 
+	prensarMetaisOpID := crafting.OperationID(len(crafting.TransformOperations))
 	crafting.RegisterOperation(crafting.TransformOperation{
 		Operation: crafting.Operation{
-			ID:               10001,
+			ID:               prensarMetaisOpID,
 			Name:             "Prensa metais",
 			RequiredTemp:     0,
 			ActivationTemp:   20.0,
@@ -52,20 +53,21 @@ func prensaMetais() crafting.Supply {
 	})
 
 	// 2. Instancia uma Prensa Hidráulica/Elétrica (Consome 500 Joules/s, precisa de 50°C para operar)
+	prensaHidraulicaEletricaID := crafting.MachineID(len(crafting.Machines))
 	crafting.RegisterMachine(crafting.Machine{
-		ID:   10000,
+		ID:   prensaHidraulicaEletricaID,
 		Name: "Prensa Hidráulica Elétrica",
 		Heat: 25.0, // Temperatura ambiente
 		Procedures: []crafting.Procedure{
 			// Operação fictícia que custa 500 Joules, mas gera calor interno por atrito (BaseEnergyChange = 5)
-			crafting.TransformOperations[crafting.OperationID(10001)],
+			crafting.TransformOperations[prensarMetaisOpID],
 		},
 		EnergyManager: energyManager,
 		EnergyBuffer:  energy.NewBattery(2000), // Consegue guardar até 4 ticks de buffer de energia
 		TypeHint:      "electric",
 	})
 
-	prensa := crafting.GetMachine(10000)
+	prensa := crafting.GetMachine(prensaHidraulicaEletricaID)
 
 	// 3. O Cabo que liga o Reator à Prensa
 	cabo := &energy.EnergyPipe{ThroughputPerTick: 1000, LossPerUnitDistance: 0.01, Distance: 5}
