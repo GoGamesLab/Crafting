@@ -11,9 +11,7 @@ import (
 )
 
 type OperationID uint16
-type ProcedureID uint16
 type MachineID uint16
-type ProductID uint16
 
 type Operation struct {
 	ID               OperationID
