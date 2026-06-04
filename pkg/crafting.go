@@ -1,6 +1,7 @@
 package crafting
 
 import (
+	"errors"
 	"math"
 
 	energy "github.com/GoGamesLab/Energy/pkg"
@@ -58,27 +59,72 @@ type Supply struct {
 }
 
 type Machine struct {
-	ID         MachineID
-	Name       string
-	Heat       float32 // Temperatura interna atual
-	Procedures []Procedure
-	Progress   float32
-	Supply     *Supply
+	ID            MachineID
+	Name          string
+	Heat          float32 // Temperatura interna atual
+	Procedures    []Procedure
+	Progress      float32
+	Supply        *Supply
+	EnergyManager *energy.EnergyManager
+	EnergyBuffer  *energy.Battery // Buffer interno de Joules recebidos da rede externa (opcional)
+	TypeHint      string          // "electric", "kinetic", "heat" -- o que o motor dela aceita
 }
 
 func (m *Machine) Update(dt float32) {
 	for _, step := range m.Procedures {
 		p := step.GetOperation()
 
-		// Check de Ativação
-		if m.Heat >= p.ActivationTemp {
-			// Execução
-			m.executeStep(step, dt)
+		// Energy regime
+		hasEnergy := true
+		if p.EnergyCost > 0 {
+			needed := p.EnergyCost * energy.EnergyUnit(dt)
+			var consumed energy.EnergyUnit
 
-			m.Heat = calculateTemperature(m.Heat, p.BaseEnergyChange*dt, p.Dissipation)
-		} else {
-			// Balanço Térmico
-			m.Heat += p.BaseEnergyChange * dt
+			if m.EnergyBuffer != nil {
+				// Tenta retirar do buffer interno alimentado por cabos
+				consumed, _ = m.EnergyBuffer.Consume(needed)
+			}
+
+			// Se não havia energia suficiente estocada no cabo/bateria interna,
+			// faz uma requisição direta ao EnergyManager em modo emergencial/contingência
+			if consumed < needed && m.EnergyManager != nil {
+				req := energy.EnergyRequirement{
+					Amount:   needed - consumed,
+					TypeHint: m.TypeHint,
+				}
+				// Passa o ID da própria máquina na lista de nós preferenciais, se aplicável
+				provided, byproducts, err := m.EnergyManager.SatisfyRequirement(req, []string{string(m.ID)})
+				if err == nil {
+					consumed += provided
+					// Se o conversor elétrico gerou calor residual (perda do motor),
+					// esse calor é transferido diretamente para a estrutura física da máquina!
+					for _, bp := range byproducts {
+						if bp.Type == "heat" {
+							m.Heat += float32(bp.Value)
+						}
+					}
+				}
+			}
+
+			// Se mesmo com a rede a energia foi insuficiente, a máquina engasga (não avança a operação)
+			if consumed < needed {
+				hasEnergy = false
+				// Aqui você pode disparar um log ou evento visual de "Falta de Energia"
+				continue
+			}
+		}
+
+		if hasEnergy {
+			// Check de Ativação
+			if m.Heat >= p.ActivationTemp {
+				// Execução
+				m.executeStep(step, dt)
+
+				m.Heat = calculateTemperature(m.Heat, p.BaseEnergyChange*dt, p.Dissipation)
+			} else {
+				// Balanço Térmico
+				m.Heat += p.BaseEnergyChange * dt
+			}
 		}
 	}
 }
@@ -150,6 +196,35 @@ func Store[K ResourceID](m *Machine, id K, amount float32) {
 	case *materials.MaterialID:
 		m.Supply.Materials.AddItem(container.ItemID(any(id).(materials.MaterialID)), amount)
 	}
+}
+
+func (m *Machine) Produce(amount energy.EnergyUnit) (energy.EnergyUnit, error) {
+	if m.EnergyBuffer == nil {
+		return 0, errors.New("machine cannot store work energy")
+	}
+	return m.EnergyBuffer.Produce(amount)
+}
+
+func (m *Machine) Consume(amount energy.EnergyUnit) (energy.EnergyUnit, error) {
+	if m.EnergyBuffer == nil {
+		return 0, nil
+	}
+	return m.EnergyBuffer.Consume(amount)
+}
+
+func (m *Machine) Peek() energy.EnergyUnit {
+	if m.EnergyBuffer == nil {
+		return 0
+	}
+	return m.EnergyBuffer.Peek()
+}
+
+func (m *Machine) Demand() energy.EnergyUnit {
+	if len(m.Procedures) == 0 {
+		return 0
+	}
+	// A demanda instantânea para este tick base/segundo é o custo da operação atual
+	return m.Procedures[0].GetOperation().EnergyCost
 }
 
 func Produce[K ResourceID](m *Machine, id K, amount float32) {

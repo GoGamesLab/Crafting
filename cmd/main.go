@@ -6,6 +6,7 @@ import (
 	"os"
 
 	crafting "github.com/GoGamesLab/Crafting/pkg"
+	energy "github.com/GoGamesLab/Energy/pkg"
 	"github.com/GoGamesLab/Inventory/pkg/container"
 	materials "github.com/GoGamesLab/Materials/pkg"
 )
@@ -24,6 +25,72 @@ func burnFuel(machineID crafting.MachineID, fuelID materials.MaterialID, amount 
 		Logger.Info(fmt.Sprintf("🔥 [%s] Temperatura: %.2f°C", machine.Name, machine.Heat))
 	}
 	return machine.GetSupply()
+}
+
+func prensaMetais() crafting.Supply {
+	energyManager := energy.NewEnergyManager()
+	energyManager.RegisterConverter(energy.NewElectricConverter(0.85))
+
+	// 1. Instancia o Reator Nuclear
+	reactor := energy.NewReactor(0.75, 1000000, 10.0)
+	reactor.AddFuel(1000) // Adiciona combustível bruto
+	energyManager.RegisterNode("reactor-1", reactor)
+
+	crafting.RegisterOperation(crafting.TransformOperation{
+		Operation: crafting.Operation{
+			ID:               10001,
+			Name:             "Prensa metais",
+			RequiredTemp:     0,
+			ActivationTemp:   20.0,
+			Duration:         15.0,
+			EnergyCost:       500,
+			BaseEnergyChange: 5.0,
+			Dissipation:      0.1,
+		},
+		Input:  materials.MaterialID(materials.PureIronID),
+		Output: materials.MaterialID(materials.PureIronID),
+	})
+
+	// 2. Instancia uma Prensa Hidráulica/Elétrica (Consome 500 Joules/s, precisa de 50°C para operar)
+	crafting.RegisterMachine(crafting.Machine{
+		ID:   10000,
+		Name: "Prensa Hidráulica Elétrica",
+		Heat: 25.0, // Temperatura ambiente
+		Procedures: []crafting.Procedure{
+			// Operação fictícia que custa 500 Joules, mas gera calor interno por atrito (BaseEnergyChange = 5)
+			crafting.TransformOperations[crafting.OperationID(10001)],
+		},
+		EnergyManager: energyManager,
+		EnergyBuffer:  energy.NewBattery(2000), // Consegue guardar até 4 ticks de buffer de energia
+		TypeHint:      "electric",
+	})
+
+	prensa := crafting.GetMachine(10000)
+
+	// 3. O Cabo que liga o Reator à Prensa
+	cabo := &energy.EnergyPipe{ThroughputPerTick: 1000, LossPerUnitDistance: 0.01, Distance: 5}
+
+	// --- Loop do Simulador (Simulando 5 Ticks) ---
+	dt := float32(1.0)
+	for i := range 5 {
+		// A) Reator queima combustível internamente e gera energia para o seu próprio buffer
+		reactor.Update()
+
+		// B) O cabo puxa energia do buffer do Reator e tenta empurrar para o buffer da Prensa
+		demand := prensa.Demand() * energy.EnergyUnit(dt)
+		transferred, pipeByproducts, _ := cabo.Transfer(reactor, &prensa, demand)
+		for _, b := range pipeByproducts {
+			Logger.Info(fmt.Sprintf("- byproduct %s = %f", b.Type, b.Value))
+		}
+
+		// C) Executa o Update da máquina
+		prensa.Update(dt)
+
+		fmt.Printf("Tick %d -> Cabo transmitiu: %.2f J | Buffer Prensa: %.2f J | Temp Prensa: %.2f°C\n",
+			i, transferred, prensa.EnergyBuffer.Stored(), prensa.Heat)
+	}
+
+	return prensa.GetSupply()
 }
 
 func printResidues(i crafting.Supply) {
@@ -45,4 +112,6 @@ func main() {
 	printResidues(burnFuel(crafting.CoalBurnerID, materials.CoalID, 10))
 
 	printResidues(burnFuel(crafting.CrudeOilBurnerID, materials.CrudeOilID, 10))
+
+	printResidues(prensaMetais())
 }

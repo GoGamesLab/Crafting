@@ -33,11 +33,9 @@ func (m *Machine) finishRefination(d RefineOperation, dt float32) {
 
 	for id, quantity := range substances {
 		substance, _ := materials.GetSubstance(id)
-		Logger.Info("⚗️ refinando substância %s\n", "desconhecida", substance.Name)
 		elements := substance.Reduce(quantity)
 		for id, quantity := range elements {
 			element, _ := materials.GetElement(id)
-			Logger.Info("⚗️ separando elemento %s", "name", element.Name)
 			if m.Heat >= element.BoilingPoint {
 				currentLoss := (1.0 - float32(math.Exp(-0.5*float64(m.Heat-element.BoilingPoint)))) * element.Volatility * 100.0 * dt
 				// aqui, adicionar a quantidade se já existir no inventário

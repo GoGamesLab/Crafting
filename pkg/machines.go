@@ -85,6 +85,8 @@ func init() {
 		Procedures: []Procedure{
 			RefineOperations[CoalCombustionID], // A fogueira está configurada para queimar carvão
 		},
+		EnergyManager: nil,
+		EnergyBuffer:  nil,
 	})
 	RegisterMachine(Machine{
 		ID:   CrudeOilBurnerID,
@@ -93,6 +95,8 @@ func init() {
 		Procedures: []Procedure{
 			RefineOperations[CrudeOilCombustionID], // A fogueira está configurada para queimar óleo crú
 		},
+		EnergyManager: nil,
+		EnergyBuffer:  nil,
 	})
 }
 
