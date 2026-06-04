@@ -46,13 +46,6 @@ type Procedure interface {
 	Execute(m *Machine, dt float32)
 }
 
-type ProductType int
-
-const (
-	MaterialType ProductType = iota
-	SubstanceType
-)
-
 type Supply struct {
 	Materials  container.Storage
 	Substances container.Storage
