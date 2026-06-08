@@ -32,7 +32,7 @@ func prensaMetais() crafting.Supply {
 	energyManager.RegisterConverter(energy.NewElectricConverter(0.85))
 
 	// 1. Instancia o Reator Nuclear
-	reactor := energy.NewReactor(0.75, 1000000, 10.0)
+	reactor := energy.NewUraniumReactor(0.75, 1000000, 10.0)
 	reactor.AddFuel(1000) // Adiciona combustível bruto
 	energyManager.RegisterNode("reactor-1", reactor)
 

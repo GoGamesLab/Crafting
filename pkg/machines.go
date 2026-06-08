@@ -2,7 +2,6 @@ package crafting
 
 import (
 	"fmt"
-	"sync"
 
 	energy "github.com/GoGamesLab/Energy/pkg"
 	container "github.com/GoGamesLab/Inventory/pkg"
@@ -15,6 +14,9 @@ const (
 	CrudeOilCombustionID
 	ManualPressBarID
 	ManualPressPlateID
+	UraniumLeachingID
+	FuelEnrichmentID
+	NuclearFissionID
 )
 
 const (
@@ -23,6 +25,7 @@ const (
 	CrudeOilBurnerID
 	IronBarForgerID
 	IronPlateForgerID
+	NuclearReactorID
 )
 
 var (
@@ -30,7 +33,6 @@ var (
 	RefineOperations     = make(map[OperationID]RefineOperation)
 	SynthesizeOperations = make(map[OperationID]SynthesizeOperation)
 	TransformOperations  = make(map[OperationID]TransformOperation)
-	machinesMutex        sync.RWMutex
 )
 
 func init() {
@@ -46,7 +48,7 @@ func init() {
 			Dissipation:      3.5,   // Perda para o ambiente (0 = 100%)
 		},
 		// O que a fogueira "consome" do inventário
-		Input: materials.MaterialID(materials.CoalID),
+		Input: materials.CoalID,
 		// O que sobra (Cinzas/Carbono e Gases para a atmosfera) deve ser jogado
 		// inventário da máquina
 		Output: []materials.Composite{
@@ -67,7 +69,7 @@ func init() {
 			Dissipation:      3.5,   // Perda para o ambiente (0 = 100%)
 		},
 		// O que a fogueira "consome" do mundo
-		Input: materials.MaterialID(materials.CrudeOilID),
+		Input: materials.CrudeOilID,
 		// O que sobra (Cinzas/Carbono e Gases para a atmosfera) deve ser jogado
 		// inventário da máquina
 		Output: []materials.Composite{
@@ -87,7 +89,7 @@ func init() {
 			Dissipation:      0.1,
 		},
 		Input:  materials.MaterialID(materials.PureIronID),
-		Output: materials.MaterialID(materials.IronBarID),
+		Output: materials.IronBarID,
 		Amount: 1,
 	})
 	RegisterOperation(TransformOperation{
@@ -100,9 +102,66 @@ func init() {
 			BaseEnergyChange: 5.0,
 			Dissipation:      0.1,
 		},
-		Input:  materials.MaterialID(materials.IronBarID),
-		Output: materials.MaterialID(materials.IronPlateID),
+		Input:  materials.IronBarID,
+		Output: materials.IronPlateID,
 		Amount: 1,
+	})
+
+	// PROCESSO 1: Lixiviação/Refino Químico (Minério -> Yellowcake)
+	RegisterOperation(RefineOperation{
+		Operation: Operation{
+			ID:               UraniumLeachingID,
+			Name:             "Lixiviação Ácida de Urânio",
+			RequiredTemp:     80.0, // Processo químico aquecido
+			ActivationTemp:   20.0,
+			Duration:         20.0,  // Demorado
+			EnergyCost:       2000,  // Consome energia elétrica da máquina
+			BaseEnergyChange: -10.0, // Consome calor (endotérmico)
+			Dissipation:      1.0,
+		},
+		Input: materials.UraniumOreID,
+		Output: []materials.Composite{
+			{Substance: materials.UraniumDioxideID, Percentual: 80}, // Vira a base do Yellowcake
+			{Substance: materials.PureSiliconID, Percentual: 20},    // Escória/Areia que sobra
+		},
+	})
+
+	// PROCESSO 2: Sintetização/Enriquecimento (Yellowcake -> Barra de Combustível Enriquecida)
+	// Nota: Como seu SynthesizeOperation atual aceita apenas um Composite de entrada na struct,
+	// simulamos que o Yellowcake pré-tratado com flúor gera a barra final.
+	RegisterOperation(SynthesizeOperation{
+		ID: FuelEnrichmentID,
+		Operation: Operation{
+			Name:             "Centrifugação e Fabricação de Célula Nuclear",
+			RequiredTemp:     60.0,
+			ActivationTemp:   20.0,
+			Duration:         45.0,  // Processo muito lento (gargalo de automação)
+			EnergyCost:       15000, // Altíssimo consumo elétrico (como centrífugas reais)
+			BaseEnergyChange: 0,
+			Dissipation:      0.2,
+		},
+		Input:  materials.Composite{Substance: materials.UraniumDioxideID, Percentual: 100}, // Entrada: Yellowcake puro
+		Output: materials.Materials[materials.LEUFuelRodID],                                 // Retorna o objeto completo da Célula
+	})
+
+	// PROCESSO 3: A Fissão Nuclear (O que acontece dentro do Reator)
+	// Consome a barra enriquecida, gera calor colossal e cospe a barra exaurida (lixo) no inventário.
+	RegisterOperation(RefineOperation{
+		Operation: Operation{
+			ID:               NuclearFissionID,
+			Name:             "Fissão Nuclear Controlada",
+			RequiredTemp:     900.0,  // Temperatura operacional ideal do reator
+			ActivationTemp:   200.0,  // Temperatura mínima de reação em cadeia autossustentável
+			Duration:         300.0,  // Uma única barra dura MUITO tempo gerando energia (5 minutos)
+			EnergyCost:       0,      // Não consome eletricidade, produz!
+			BaseEnergyChange: 4500.0, // Geração de calor massiva (Muitos Joules por tick para a máquina)
+			Dissipation:      15.5,   // Dissipa calor agressivamente para os blocos adjacentes
+		},
+		Input: materials.LEUFuelRodID,
+		Output: []materials.Composite{
+			{Substance: materials.Cesium137ID, Percentual: 70},      // Transforma-se em lixo radioativo bruto
+			{Substance: materials.PlutoniumOxideID, Percentual: 30}, // Subproduto valioso para reatores avançados (Mox)
+		},
 	})
 
 	RegisterMachine(Machine{
@@ -131,6 +190,8 @@ func init() {
 		EnergyManager: nil,
 		EnergyBuffer:  nil,
 	})
+	// TODO: vou precisar de um energy manager, mas percebi agora que a fonte produtora de energia, como o reator
+	// por exemplo, consome combustível e não possue inventário
 	RegisterMachine(Machine{
 		ID:   IronBarForgerID,
 		Name: "Prensa Manual de Barras",
@@ -143,12 +204,22 @@ func init() {
 		EnergyBuffer:  energy.NewBattery(2000), // Consegue guardar até 4 ticks de buffer de energia
 		TypeHint:      "electric",
 	})
+
+	RegisterMachine(Machine{
+		ID:   NuclearReactorID,
+		Name: "Reator Nuclear de Fissão RBMK-1000",
+		Heat: 21.0, // Começa em temperatura ambiente
+		Procedures: []Procedure{
+			// O reator executa a operação de fissão nuclear se houver combustível no Supply
+			RefineOperations[NuclearFissionID],
+		},
+		EnergyManager: nil,    // Não gera eletricidade diretamente, gera CALOR bruto.
+		EnergyBuffer:  nil,    // Outras máquinas (Turbinas a Vapor) vão sugar o calor dele.
+		TypeHint:      "heat", // O output/natureza principal desta máquina é térmico
+	})
 }
 
 func RegisterMachine(m Machine) error {
-	machinesMutex.Lock()
-	defer machinesMutex.Unlock()
-
 	if _, exists := Machines[m.ID]; exists {
 		return fmt.Errorf("🧨 Máquina com ID %d já registrada", m.ID)
 	}
@@ -173,9 +244,6 @@ func registerOp[T Procedure](store map[OperationID]T, op T) error {
 }
 
 func RegisterOperation(p Procedure) error {
-	machinesMutex.Lock()
-	defer machinesMutex.Unlock()
-
 	switch op := p.(type) {
 	case RefineOperation:
 		return registerOp(RefineOperations, op)
