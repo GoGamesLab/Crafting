@@ -52,9 +52,9 @@ func init() {
 		// O que sobra (Cinzas/Carbono e Gases para a atmosfera) deve ser jogado
 		// inventário da máquina
 		Output: []materials.Composite{
-			{Substance: materials.PureCarbonID, Percentual: 5}, // Sobra um pouco de cinza/resíduo
-			{Substance: materials.PureSulfurID, Percentual: 5}, // Libera enxofre (poluição)
-			{Substance: materials.MethaneID, Percentual: 15},   // Libera os voláteis
+			{Substance: materials.PureCarbonID, Percentual: 5},
+			{Substance: materials.PureSulfurID, Percentual: 5},
+			{Substance: materials.MethaneID, Percentual: 15},
 		},
 	})
 	RegisterOperation(RefineOperation{
@@ -121,8 +121,8 @@ func init() {
 		},
 		Input: materials.UraniumOreID,
 		Output: []materials.Composite{
-			{Substance: materials.UraniumDioxideID, Percentual: 80}, // Vira a base do Yellowcake
-			{Substance: materials.PureSiliconID, Percentual: 20},    // Escória/Areia que sobra
+			{Substance: materials.UraniumDioxideID, Percentual: 80},
+			{Substance: materials.PureSiliconID, Percentual: 20},
 		},
 	})
 
@@ -152,15 +152,15 @@ func init() {
 			Name:             "Fissão Nuclear Controlada",
 			RequiredTemp:     900.0,  // Temperatura operacional ideal do reator
 			ActivationTemp:   200.0,  // Temperatura mínima de reação em cadeia autossustentável
-			Duration:         300.0,  // Uma única barra dura MUITO tempo gerando energia (5 minutos)
+			Duration:         0.0,    // Uma única barra dura MUITO tempo gerando energia (5 minutos)
 			EnergyCost:       0,      // Não consome eletricidade, produz!
 			BaseEnergyChange: 4500.0, // Geração de calor massiva (Muitos Joules por tick para a máquina)
 			Dissipation:      15.5,   // Dissipa calor agressivamente para os blocos adjacentes
 		},
 		Input: materials.LEUFuelRodID,
 		Output: []materials.Composite{
-			{Substance: materials.Cesium137ID, Percentual: 70},      // Transforma-se em lixo radioativo bruto
-			{Substance: materials.PlutoniumOxideID, Percentual: 30}, // Subproduto valioso para reatores avançados (Mox)
+			{Substance: materials.Cesium137ID, Percentual: 70},
+			{Substance: materials.PlutoniumOxideID, Percentual: 30},
 		},
 	})
 
@@ -213,9 +213,9 @@ func init() {
 			// O reator executa a operação de fissão nuclear se houver combustível no Supply
 			RefineOperations[NuclearFissionID],
 		},
-		EnergyManager: nil,    // Não gera eletricidade diretamente, gera CALOR bruto.
-		EnergyBuffer:  nil,    // Outras máquinas (Turbinas a Vapor) vão sugar o calor dele.
-		TypeHint:      "heat", // O output/natureza principal desta máquina é térmico
+		EnergyManager: nil,                        // Não gera eletricidade diretamente, gera CALOR bruto.
+		EnergyBuffer:  energy.NewBattery(1000000), // Outras máquinas (Turbinas a Vapor) vão sugar o calor dele.
+		TypeHint:      "heat",                     // O output/natureza principal desta máquina é térmico
 	})
 }
 
@@ -234,6 +234,17 @@ func RegisterMachine(m Machine) error {
 	return nil
 }
 
+// Funções para EnergyNode e EnergyManagement ---------------------------------------------------->
+
+func (m *Machine) Capacity() energy.EnergyUnit { return m.EnergyBuffer.Capacity() }
+
+func (m *Machine) Stored() energy.EnergyUnit { return m.EnergyBuffer.Stored() }
+
+func (m *Machine) RegisterEnergyManager(em *energy.EnergyManager) { m.EnergyManager = em }
+
+// <-----------------------------------------------------------------------------------------------
+
+// Funções de manufatura
 func registerOp[T Procedure](store map[OperationID]T, op T) error {
 	id := op.GetOperation().ID
 	if _, exists := store[id]; exists {

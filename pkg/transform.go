@@ -93,5 +93,5 @@ func (m *Machine) executeTransformationSlice(t TransformOperation, amount float3
 	// Adiciona o material transformado ao inventário de saída da máquina
 	// Se o seu sistema de Storage aceitar structs complexas, usamos a instância;
 	// Caso use IDs, passamos o ID e a quantidade.
-	m.Supply.Materials.AddItem(container.ItemID(transformedInstance.ID), removed)
+	m.Supply.Materials.AddItem(container.ItemID(transformedInstance.ID), amount)
 }

@@ -27,33 +27,38 @@ func burnFuel(machineID crafting.MachineID, fuelID materials.MaterialID, amount 
 	return machine.GetSupply()
 }
 
-func prensaMetais() crafting.Supply {
+func prensaMetais() (crafting.Supply, crafting.Supply) {
 	energyManager := energy.NewEnergyManager()
 	energyManager.RegisterConverter(energy.NewElectricConverter(0.85))
 
 	// 1. Instancia o Reator Nuclear
-	reactor := energy.NewUraniumReactor(0.75, 1000000, 10.0)
-	reactor.AddFuel(1000) // Adiciona combustível bruto
+	//reactor := energy.NewUraniumReactor(0.75, 1000000, 10.0)
+	reactor := crafting.GetMachine(crafting.NuclearReactorID)
+
+	//reactor.AddFuel(1000) // Adiciona combustível bruto
+	fuel, _ := materials.GetMaterial(materials.LEUFuelRodID)
+	crafting.Store(reactor, fuel.ID, 1000000)
+
 	energyManager.RegisterNode("reactor-1", reactor)
 
-	prensarMetaisOpID := crafting.OperationID(len(crafting.TransformOperations))
+	prensarMetaisOpID := crafting.OperationID(1001)
 	crafting.RegisterOperation(crafting.TransformOperation{
 		Operation: crafting.Operation{
 			ID:               prensarMetaisOpID,
 			Name:             "Prensa metais",
 			ActivationTemp:   20.0,
-			Duration:         15.0,
+			Duration:         2.0,
 			EnergyCost:       500,
 			BaseEnergyChange: 5.0,
 			Dissipation:      0.1,
 		},
-		Input:  materials.MaterialID(materials.PureIronID),
-		Output: materials.MaterialID(materials.PureIronID),
+		Input:  materials.IronBarID,
+		Output: materials.IronPlateID,
 		Amount: 1,
 	})
 
 	// 2. Instancia uma Prensa Hidráulica/Elétrica (Consome 500 Joules/s, precisa de 50°C para operar)
-	prensaHidraulicaEletricaID := crafting.MachineID(len(crafting.Machines))
+	prensaHidraulicaEletricaID := crafting.MachineID(1001)
 	crafting.RegisterMachine(crafting.Machine{
 		ID:   prensaHidraulicaEletricaID,
 		Name: "Prensa Hidráulica Elétrica",
@@ -68,15 +73,19 @@ func prensaMetais() crafting.Supply {
 	})
 
 	prensa := crafting.GetMachine(prensaHidraulicaEletricaID)
+	crafting.Store(prensa, materials.IronBarID, 100)
+	crafting.Store(prensa, materials.IronPlateID, 0)
+
+	energyManager.RegisterNode("prensa-1", prensa)
 
 	// 3. O Cabo que liga o Reator à Prensa
 	cabo := &energy.EnergyPipe{ThroughputPerTick: 1000, LossPerUnitDistance: 0.01, Distance: 5}
 
 	// --- Loop do Simulador (Simulando 5 Ticks) ---
 	dt := float32(1.0)
-	for i := range 5 {
+	for i := range 15 {
 		// A) Reator queima combustível internamente e gera energia para o seu próprio buffer
-		reactor.Update()
+		reactor.Update(1)
 
 		// B) O cabo puxa energia do buffer do Reator e tenta empurrar para o buffer da Prensa
 		demand := prensa.Demand() * energy.EnergyUnit(dt)
@@ -88,11 +97,11 @@ func prensaMetais() crafting.Supply {
 		// C) Executa o Update da máquina
 		prensa.Update(dt)
 
-		fmt.Printf("Tick %d -> Cabo transmitiu: %.2f J | Buffer Prensa: %.2f J | Temp Prensa: %.2f°C\n",
-			i, transferred, prensa.EnergyBuffer.Stored(), prensa.Heat)
+		fmt.Printf("Tick %d -> Cabo transmitiu: %.2f J | Buffer Prensa: %.2f J | Temp Prensa: %.2f°C | Buffer Reator: %.2f J | Temp Reator: %.2f°C \n",
+			i, transferred, prensa.EnergyBuffer.Stored(), prensa.Heat, reactor.EnergyBuffer.Stored(), reactor.Heat)
 	}
 
-	return prensa.GetSupply()
+	return prensa.GetSupply(), reactor.GetSupply()
 }
 
 func printResidues(i crafting.Supply) {
@@ -111,9 +120,11 @@ func printResidues(i crafting.Supply) {
 }
 
 func main() {
-	printResidues(burnFuel(crafting.CoalBurnerID, materials.CoalID, 10))
+	//printResidues(burnFuel(crafting.CoalBurnerID, materials.CoalID, 10))
 
-	printResidues(burnFuel(crafting.CrudeOilBurnerID, materials.CrudeOilID, 10))
+	//printResidues(burnFuel(crafting.CrudeOilBurnerID, materials.CrudeOilID, 10))
 
-	printResidues(prensaMetais())
+	machine, reactor := prensaMetais()
+	printResidues(machine)
+	printResidues(reactor)
 }
