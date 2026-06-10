@@ -4,13 +4,13 @@ import (
 	materials "github.com/GoGamesLab/Materials/pkg"
 )
 
-// Basicamente sintetizar é processar uma série de elementos e torná-los num material
+// Basicamente sintetizar é processar uma série de elementos e torná-los em materiais possíveis
 
 type SynthesizeOperation struct {
 	ID OperationID
 	Operation
-	Input  materials.Composite // Aqui entram as substâncias necessárias e ficam os resíduos/excedentes (Escória/Gases)
-	Output materials.Material  // Aqui sai o produto desejado
+	Input  materials.Composite  // Aqui entram as substâncias necessárias e ficam os resíduos/excedentes (Escória/Gases)
+	Output []materials.Material // Aqui saem os produtos possíveis
 }
 
 func (s SynthesizeOperation) GetOperation() Operation { return s.Operation }

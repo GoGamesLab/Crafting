@@ -141,7 +141,7 @@ func init() {
 			Dissipation:      0.2,
 		},
 		Input:  materials.Composite{Substance: materials.UraniumDioxideID, Percentual: 100}, // Entrada: Yellowcake puro
-		Output: materials.Materials[materials.LEUFuelRodID],                                 // Retorna o objeto completo da Célula
+		Output: []materials.Material{materials.Materials[materials.LEUFuelRodID]},           // Retorna o objeto completo da Célula
 	})
 
 	// PROCESSO 3: A Fissão Nuclear (O que acontece dentro do Reator)
