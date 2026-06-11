@@ -37,15 +37,15 @@ type Supply struct {
 }
 
 type Machine struct {
-	ID            MachineID
-	Name          string
-	Heat          float32 // Temperatura interna atual
-	Procedures    []Procedure
-	Progress      float32
-	Supply        *Supply
-	EnergyManager *energy.EnergyManager
-	EnergyBuffer  *energy.Battery // Buffer interno de Joules recebidos da rede externa (opcional)
-	TypeHint      string          // "electric", "kinetic", "heat" -- o que o motor dela aceita
+	ID             MachineID
+	Name           string
+	Heat           float32 // Temperatura interna atual
+	Procedures     []Procedure
+	Progress       float32
+	Supply         *Supply
+	xEnergyManager *energy.EnergyManager
+	EnergyBuffer   *energy.Battery // Buffer interno de Joules recebidos da rede externa (opcional)
+	TypeHint       string          // "electric", "kinetic", "heat" -- o que o motor dela aceita
 }
 
 func energyRegime(m *Machine, p Operation, dt float32) (hasEnergy bool) {
@@ -61,13 +61,13 @@ func energyRegime(m *Machine, p Operation, dt float32) (hasEnergy bool) {
 
 		// Se não havia energia suficiente estocada no cabo/bateria interna,
 		// faz uma requisição direta ao EnergyManager em modo emergencial/contingência
-		if consumed < needed && m.EnergyManager != nil {
+		if consumed < needed && energy.EnergyManagerInstance() != nil {
 			req := energy.EnergyRequirement{
 				Amount:   needed - consumed,
 				TypeHint: m.TypeHint,
 			}
 			// Passa o ID da própria máquina na lista de nós preferenciais, se aplicável
-			provided, byproducts, err := m.EnergyManager.SatisfyRequirement(req, []string{fmt.Sprint(m.ID)})
+			provided, byproducts, err := energy.EnergyManagerInstance().SatisfyRequirement(req, []string{fmt.Sprint(m.ID)})
 			if err == nil {
 				consumed += provided
 				// Se o conversor elétrico gerou calor residual (perda do motor),

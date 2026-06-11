@@ -28,16 +28,42 @@ func burnFuel(machineID crafting.MachineID, fuelID materials.MaterialID, amount 
 }
 
 func prensaMetais() (crafting.Supply, crafting.Supply) {
-	energyManager := energy.NewEnergyManager()
-	energyManager.RegisterConverter(energy.NewElectricConverter(0.85))
+	energyManager := energy.EnergyManagerInstance()
+	energyManager.RegisterConverter(energy.NewDynamo(0.85))
 
 	// 1. Instancia o Reator Nuclear
 	//reactor := energy.NewUraniumReactor(0.75, 1000000, 10.0)
 	reactor := crafting.GetMachine(crafting.NuclearReactorID)
+	// produz um mínimo inicial com combustível "importado"
+	fuel, _ := materials.GetMaterial("leu_fuel_rod")
+	crafting.Store(reactor, fuel.ID, 1)
+	reactor.Update(1) // para esquentar
+	reactor.Update(1) // para produzir algo
+	// mas é claro que não está produzindo, pois nada no sistema de manufatura "produz" energia
+	// energia não é um produto de manufatura
+	// o reator só produz calor, então eu preciso aplicar:
+	// - um transformador de calor em energia cinética, seguido de
+	// - um transformador de energia cinética em eletricidade
+	// e somente então armazenar a eletricidade na bateria interna do reator!
+
+	// produzir combustível para o reator
+	// a centrífuga não está funcionando por falta de energia!
+	// será que consigo usar o reator?
+	centrifuge := crafting.GetMachine(crafting.UraniumCentrifugeID)
+	energyManager.RegisterNode("centrifuge-1", centrifuge)
+	cabo1 := &energy.EnergyPipe{ThroughputPerTick: 1000, LossPerUnitDistance: 0.01, Distance: 5}
+	// tentei transferir do reator para a centrífuga, mas o reator ainda não tem energia!
+	cabo1.Transfer(reactor, centrifuge, 200000)
+	crafting.Store(centrifuge, materials.SubstanceID("uranium_dioxide"), 9000)
+	crafting.Store(centrifuge, materials.SubstanceID("pure_iron"), 100)
+	for true {
+		centrifuge.Update(1)
+		if centrifuge.Supply.Materials.Items[container.ItemID("leu_fuel_rod")] >= 10 {
+			break
+		}
+	}
 
 	//reactor.AddFuel(1000) // Adiciona combustível bruto
-	fuel, _ := materials.GetMaterial(materials.LEUFuelRodID)
-	crafting.Store(reactor, fuel.ID, 1000000)
 
 	energyManager.RegisterNode("reactor-1", reactor)
 
@@ -52,8 +78,8 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 			BaseEnergyChange: 5.0,
 			Dissipation:      0.1,
 		},
-		Input:  materials.IronBarID,
-		Output: materials.IronPlateID,
+		Input:  "iron_bar",
+		Output: "iron_plate",
 		Amount: 1,
 	})
 
@@ -67,19 +93,18 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 			// Operação fictícia que custa 500 Joules, mas gera calor interno por atrito (BaseEnergyChange = 5)
 			crafting.TransformOperations[prensarMetaisOpID],
 		},
-		EnergyManager: energyManager,
-		EnergyBuffer:  energy.NewBattery(2000), // Consegue guardar até 4 ticks de buffer de energia
-		TypeHint:      "electric",
+		EnergyBuffer: energy.NewBattery(2000), // Consegue guardar até 4 ticks de buffer de energia
+		TypeHint:     "electric",
 	})
 
 	prensa := crafting.GetMachine(prensaHidraulicaEletricaID)
-	crafting.Store(prensa, materials.IronBarID, 100)
-	crafting.Store(prensa, materials.IronPlateID, 0)
+	crafting.Store(prensa, materials.MaterialID("iron_bar"), 100)
+	crafting.Store(prensa, materials.MaterialID("iron_plate"), 0)
 
 	energyManager.RegisterNode("prensa-1", prensa)
 
 	// 3. O Cabo que liga o Reator à Prensa
-	cabo := &energy.EnergyPipe{ThroughputPerTick: 1000, LossPerUnitDistance: 0.01, Distance: 5}
+	cabo2 := &energy.EnergyPipe{ThroughputPerTick: 1000, LossPerUnitDistance: 0.01, Distance: 5}
 
 	// --- Loop do Simulador (Simulando 5 Ticks) ---
 	dt := float32(1.0)
@@ -89,7 +114,7 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 
 		// B) O cabo puxa energia do buffer do Reator e tenta empurrar para o buffer da Prensa
 		demand := prensa.Demand() * energy.EnergyUnit(dt)
-		transferred, pipeByproducts, _ := cabo.Transfer(reactor, prensa, demand)
+		transferred, pipeByproducts, _ := cabo2.Transfer(reactor, prensa, demand)
 		for _, b := range pipeByproducts {
 			Logger.Info(fmt.Sprintf("- byproduct %s = %f", b.Type, b.Value))
 		}
@@ -120,9 +145,13 @@ func printResidues(i crafting.Supply) {
 }
 
 func main() {
-	//printResidues(burnFuel(crafting.CoalBurnerID, materials.CoalID, 10))
+	materials.LoadElementsFromJSON("../../Grind/assets/resources/elements.json")
+	materials.LoadSubstancesFromJSON("../../Grind/assets/resources/substances.json")
+	materials.LoadMaterialsFromJSON("../../Grind/assets/resources/materials.json")
 
-	//printResidues(burnFuel(crafting.CrudeOilBurnerID, materials.CrudeOilID, 10))
+	//printResidues(burnFuel(crafting.CoalBurnerID, "coal", 10))
+
+	//printResidues(burnFuel(crafting.CrudeOilBurnerID, "crude_oil", 10))
 
 	machine, reactor := prensaMetais()
 	printResidues(machine)

@@ -29,7 +29,7 @@ func (m *Machine) finishRefination(d RefineOperation, dt float32) {
 		return
 	}
 
-	substances := material.Reduce(1)
+	substances := material.Reduction(1)
 	for id, quantity := range substances {
 		substance, _ := materials.GetSubstance(id)
 		elements := substance.Reduce(quantity)

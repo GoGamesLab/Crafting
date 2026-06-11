@@ -25,6 +25,7 @@ const (
 	CrudeOilBurnerID
 	IronBarForgerID
 	IronPlateForgerID
+	UraniumCentrifugeID
 	NuclearReactorID
 )
 
@@ -48,13 +49,13 @@ func init() {
 			Dissipation:      3.5,   // Perda para o ambiente (0 = 100%)
 		},
 		// O que a fogueira "consome" do inventário
-		Input: materials.CoalID,
+		Input: "coal",
 		// O que sobra (Cinzas/Carbono e Gases para a atmosfera) deve ser jogado
 		// inventário da máquina
 		Output: []materials.Composite{
-			{Substance: materials.PureCarbonID, Percentual: 5},
-			{Substance: materials.PureSulfurID, Percentual: 5},
-			{Substance: materials.MethaneID, Percentual: 15},
+			{Substance: "pure_carbon", Percentual: 5},
+			{Substance: "pure_sulfur", Percentual: 5},
+			{Substance: "methane", Percentual: 15},
 		},
 	})
 	RegisterOperation(RefineOperation{
@@ -69,13 +70,13 @@ func init() {
 			Dissipation:      3.5,   // Perda para o ambiente (0 = 100%)
 		},
 		// O que a fogueira "consome" do mundo
-		Input: materials.CrudeOilID,
+		Input: "crude_oil",
 		// O que sobra (Cinzas/Carbono e Gases para a atmosfera) deve ser jogado
 		// inventário da máquina
 		Output: []materials.Composite{
-			{Substance: materials.ParaffinID, Percentual: 2},
-			{Substance: materials.MethaneID, Percentual: 5},
-			{Substance: materials.PureSulfurID, Percentual: 3},
+			{Substance: "paraffin", Percentual: 2},
+			{Substance: "methane", Percentual: 5},
+			{Substance: "pure_sulfur", Percentual: 3},
 		},
 	})
 	RegisterOperation(TransformOperation{
@@ -88,8 +89,8 @@ func init() {
 			BaseEnergyChange: 5.0,
 			Dissipation:      0.1,
 		},
-		Input:  materials.MaterialID(materials.PureIronID),
-		Output: materials.IronBarID,
+		Input:  materials.MaterialID("pure_iron"),
+		Output: "iron_bar",
 		Amount: 1,
 	})
 	RegisterOperation(TransformOperation{
@@ -102,8 +103,8 @@ func init() {
 			BaseEnergyChange: 5.0,
 			Dissipation:      0.1,
 		},
-		Input:  materials.IronBarID,
-		Output: materials.IronPlateID,
+		Input:  "iron_bar",
+		Output: "iron_plate",
 		Amount: 1,
 	})
 
@@ -119,10 +120,10 @@ func init() {
 			BaseEnergyChange: -10.0, // Consome calor (endotérmico)
 			Dissipation:      1.0,
 		},
-		Input: materials.UraniumOreID,
+		Input: "uranium_ore",
 		Output: []materials.Composite{
-			{Substance: materials.UraniumDioxideID, Percentual: 80},
-			{Substance: materials.PureSiliconID, Percentual: 20},
+			{Substance: "uranium_dioxide", Percentual: 80},
+			{Substance: "pure_silicon", Percentual: 20},
 		},
 	})
 
@@ -130,8 +131,8 @@ func init() {
 	// Nota: Como seu SynthesizeOperation atual aceita apenas um Composite de entrada na struct,
 	// simulamos que o Yellowcake pré-tratado com flúor gera a barra final.
 	RegisterOperation(SynthesizeOperation{
-		ID: FuelEnrichmentID,
 		Operation: Operation{
+			ID:               FuelEnrichmentID,
 			Name:             "Centrifugação e Fabricação de Célula Nuclear",
 			RequiredTemp:     60.0,
 			ActivationTemp:   20.0,
@@ -140,8 +141,11 @@ func init() {
 			BaseEnergyChange: 0,
 			Dissipation:      0.2,
 		},
-		Input:  materials.Composite{Substance: materials.UraniumDioxideID, Percentual: 100}, // Entrada: Yellowcake puro
-		Output: []materials.Material{materials.Materials[materials.LEUFuelRodID]},           // Retorna o objeto completo da Célula
+		Input: []materials.Composite{
+			{Substance: "uranium_dioxide", Percentual: 90},
+			{Substance: "pure_iron", Percentual: 10},
+		}, // Entrada: Yellowcake puro
+		Output: "leu_fuel_rod", // Retorna o material completo da Célula de energia
 	})
 
 	// PROCESSO 3: A Fissão Nuclear (O que acontece dentro do Reator)
@@ -157,10 +161,10 @@ func init() {
 			BaseEnergyChange: 4500.0, // Geração de calor massiva (Muitos Joules por tick para a máquina)
 			Dissipation:      15.5,   // Dissipa calor agressivamente para os blocos adjacentes
 		},
-		Input: materials.LEUFuelRodID,
+		Input: "leu_fuel_rod",
 		Output: []materials.Composite{
-			{Substance: materials.Cesium137ID, Percentual: 70},
-			{Substance: materials.PlutoniumOxideID, Percentual: 30},
+			{Substance: "cesium_137", Percentual: 70},
+			{Substance: "plutonium_oxide", Percentual: 30},
 		},
 	})
 
@@ -177,8 +181,7 @@ func init() {
 		Procedures: []Procedure{
 			RefineOperations[CoalCombustionID], // A fogueira está configurada para queimar carvão
 		},
-		EnergyManager: nil,
-		EnergyBuffer:  nil,
+		EnergyBuffer: nil,
 	})
 	RegisterMachine(Machine{
 		ID:   CrudeOilBurnerID,
@@ -187,8 +190,7 @@ func init() {
 		Procedures: []Procedure{
 			RefineOperations[CrudeOilCombustionID], // A fogueira está configurada para queimar óleo crú
 		},
-		EnergyManager: nil,
-		EnergyBuffer:  nil,
+		EnergyBuffer: nil,
 	})
 	// TODO: vou precisar de um energy manager, mas percebi agora que a fonte produtora de energia, como o reator
 	// por exemplo, consome combustível e não possue inventário
@@ -200,9 +202,19 @@ func init() {
 			// Operação que custa 500 Joules, mas gera calor interno por atrito (BaseEnergyChange = 5)
 			TransformOperations[ManualPressBarID],
 		},
-		EnergyManager: nil,
-		EnergyBuffer:  energy.NewBattery(2000), // Consegue guardar até 4 ticks de buffer de energia
-		TypeHint:      "electric",
+		EnergyBuffer: energy.NewBattery(2000), // Consegue guardar até 4 ticks de buffer de energia
+		TypeHint:     "electric",
+	})
+
+	RegisterMachine(Machine{
+		ID:   UraniumCentrifugeID,
+		Name: "Centrífuga de Enriquecimento de Uranium",
+		Heat: 21.0,
+		Procedures: []Procedure{
+			SynthesizeOperations[FuelEnrichmentID],
+		},
+		EnergyBuffer: energy.NewBattery(1000000),
+		TypeHint:     "electric",
 	})
 
 	RegisterMachine(Machine{
@@ -213,9 +225,8 @@ func init() {
 			// O reator executa a operação de fissão nuclear se houver combustível no Supply
 			RefineOperations[NuclearFissionID],
 		},
-		EnergyManager: nil,                        // Não gera eletricidade diretamente, gera CALOR bruto.
-		EnergyBuffer:  energy.NewBattery(1000000), // Outras máquinas (Turbinas a Vapor) vão sugar o calor dele.
-		TypeHint:      "heat",                     // O output/natureza principal desta máquina é térmico
+		EnergyBuffer: energy.NewBattery(1000000), // Outras máquinas (Turbinas a Vapor) vão sugar o calor dele.
+		TypeHint:     "heat",                     // O output/natureza principal desta máquina é térmico
 	})
 }
 
@@ -239,8 +250,6 @@ func RegisterMachine(m Machine) error {
 func (m *Machine) Capacity() energy.EnergyUnit { return m.EnergyBuffer.Capacity() }
 
 func (m *Machine) Stored() energy.EnergyUnit { return m.EnergyBuffer.Stored() }
-
-func (m *Machine) RegisterEnergyManager(em *energy.EnergyManager) { m.EnergyManager = em }
 
 // <-----------------------------------------------------------------------------------------------
 
