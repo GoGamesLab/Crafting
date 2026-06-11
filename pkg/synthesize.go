@@ -8,7 +8,6 @@ import (
 // Basicamente sintetizar é processar uma série de elementos e torná-los em materiais possíveis
 
 type SynthesizeOperation struct {
-	ID OperationID
 	Operation
 	Input  []materials.Composite // Aqui entram as substâncias necessárias e ficam os resíduos/excedentes (Escória/Gases)
 	Output materials.MaterialID  // Aqui é informado o material desejado

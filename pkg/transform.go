@@ -10,7 +10,6 @@ import (
 // Transformar é basicamente mudar a forma de um material em outra forma
 
 type TransformOperation struct {
-	ID OperationID
 	Operation
 	Input  materials.MaterialID // Aqui entra o produto necessário num formato
 	Output materials.MaterialID // Aqui sai o produto em outro formato

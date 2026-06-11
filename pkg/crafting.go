@@ -1,14 +1,34 @@
 package crafting
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
+	"os"
 
 	energy "github.com/GoGamesLab/Energy/pkg"
 	container "github.com/GoGamesLab/Inventory/pkg"
 	materials "github.com/GoGamesLab/Materials/pkg"
 )
+
+type CraftDataJSON struct {
+	Operations []json.RawMessage `json:"operations"`
+	Machines   []MachineJSON     `json:"machines"`
+}
+
+type OperationTypeCheck struct {
+	Type string `json:"Type"`
+}
+
+type MachineJSON struct {
+	ID             MachineID `json:"ID"`
+	Name           string    `json:"Name"`
+	Heat           float32   `json:"Heat"`
+	ProcedureIDs   []string  `json:"ProcedureIDs"`
+	EnergyCapacity float64   `json:"EnergyCapacity"` // Usado para criar o EnergyBuffer
+	TypeHint       string    `json:"TypeHint"`
+}
 
 type OperationID string
 type MachineID string
@@ -37,15 +57,14 @@ type Supply struct {
 }
 
 type Machine struct {
-	ID             MachineID
-	Name           string
-	Heat           float32 // Temperatura interna atual
-	Procedures     []Procedure
-	Progress       float32
-	Supply         *Supply
-	xEnergyManager *energy.EnergyManager
-	EnergyBuffer   *energy.Battery // Buffer interno de Joules recebidos da rede externa (opcional)
-	TypeHint       string          // "electric", "kinetic", "heat" -- o que o motor dela aceita
+	ID           MachineID
+	Name         string
+	Heat         float32 // Temperatura interna atual
+	Procedures   []Procedure
+	Progress     float32
+	Supply       *Supply
+	EnergyBuffer *energy.Battery // Buffer interno de Joules recebidos da rede externa (opcional)
+	TypeHint     string          // "electric", "kinetic", "heat" -- o que o motor dela aceita
 }
 
 func energyRegime(m *Machine, p Operation, dt float32) (hasEnergy bool) {
@@ -115,46 +134,87 @@ func (m *Machine) GetSupply() Supply {
 	}
 }
 
-func (m *Machine) executeStep(step Procedure, dt float32) {
-	p := step.GetOperation()
-
-	// 1. Acumula o progresso baseado no tempo real que passou
-	m.Progress += dt
-
-	// 2. Verifica se o tempo de duração foi atingido
-	// isso aqui não está sendo um processo contínuo
-	// mas tem um desempenho melhor (só calcular tudo ao final do tempo)
-	if m.Progress >= p.Duration {
-		// O PROCESSO TERMINOU: O objeto Procedure agora decide como se executar
-		step.Execute(m, dt)
-
-		// 3. Reseta o progresso para o próximo ciclo (ou próximo passo da chain)
-		m.Progress = 0
+func LoadDefinitionsFromJSON(filepath string) error {
+	fileData, err := os.ReadFile(filepath)
+	if err != nil {
+		return fmt.Errorf("falha ao ler o arquivo: %w", err)
 	}
-}
 
-// calculateTemperature calcula a temperatura no próximo tick.
-// current: temperatura atual
-// heatGain: ganho de temperatura por tick enquanto acesa
-// retorna: nova temperatura após um tick
-func calculateTemperature(current, heatGain float32, dissipation float32) float32 {
-	const Tenv = 21.0
+	var gameData CraftDataJSON
+	if err := json.Unmarshal(fileData, &gameData); err != nil {
+		return fmt.Errorf("falha no unmarshal do JSON base: %w", err)
+	}
 
-	// Tempo de meia-vida em ticks para a diferença T - Tenv.
-	// Ajuste aqui para alterar quão rápido a fornalha dissipa calor.
-	// Ex.: dissipation = 50 → dissipa mais devagar; dissipation = 10 → mais rápido.
+	// 1. Carregar e Registrar Operações Primeiro
+	for _, rawOp := range gameData.Operations {
+		var typeCheck OperationTypeCheck
+		if err := json.Unmarshal(rawOp, &typeCheck); err != nil {
+			return fmt.Errorf("falha ao identificar tipo da operação: %w", err)
+		}
 
-	// taxa de dissipação por tick derivada da meia-vida:
-	// fator de retenção por tick = 2^(-1/tHalf)
-	retain := math.Pow(2.0, -1.0/float64(dissipation))
-	k := 1.0 - retain // fração perdida por tick
+		switch typeCheck.Type {
+		case "refine":
+			var op RefineOperation
+			if err := json.Unmarshal(rawOp, &op); err != nil {
+				return err
+			}
+			if err := RegisterOperation(op); err != nil {
+				return err
+			}
 
-	// Atualiza: acumula ganho e aplica dissipação em relação ao ambiente
-	delta := float64(current - Tenv)
-	delta = delta*(1.0-k) + float64(heatGain) // primeiro aplica retenção, depois adiciona ganho
-	// equivalência ao modelo T_next = Tenv + (T_current - Tenv)*(1-k) + heatGain
+		case "synthesize":
+			var op SynthesizeOperation
+			if err := json.Unmarshal(rawOp, &op); err != nil {
+				return err
+			}
+			if err := RegisterOperation(op); err != nil {
+				return err
+			}
 
-	return float32(Tenv + delta)
+		case "transform":
+			var op TransformOperation
+			if err := json.Unmarshal(rawOp, &op); err != nil {
+				return err
+			}
+			if err := RegisterOperation(op); err != nil {
+				return err
+			}
+
+		default:
+			return fmt.Errorf("🧨 Tipo de operação desconhecido no JSON: %s", typeCheck.Type)
+		}
+	}
+
+	// 2. Carregar e Registrar Máquinas
+	for _, mJSON := range gameData.Machines {
+		m := Machine{
+			ID:       mJSON.ID,
+			Name:     mJSON.Name,
+			Heat:     mJSON.Heat,
+			TypeHint: mJSON.TypeHint,
+		}
+
+		// Inicializar o EnergyBuffer se houver capacidade declarada
+		if mJSON.EnergyCapacity > 0 {
+			m.EnergyBuffer = energy.NewBattery(mJSON.EnergyCapacity)
+		}
+
+		// Vincular os Procedures pelas strings de ID
+		for _, procID := range mJSON.ProcedureIDs {
+			proc, err := findProcedure(OperationID(procID))
+			if err != nil {
+				return fmt.Errorf("máquina %s referenciou procedure inexistente: %w", m.ID, err)
+			}
+			m.Procedures = append(m.Procedures, proc)
+		}
+
+		// Registrar (Isso também inicializará o Supply)
+		if err := RegisterMachine(m); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 type ResourceID interface {
@@ -233,4 +293,60 @@ func Consume[K ResourceID](m *Machine, id K, amount float32) {
 	case *materials.MaterialID:
 		m.Supply.Materials.RemoveItem(container.ItemID(any(id).(materials.MaterialID)), amount/100)
 	}
+}
+
+func (m *Machine) executeStep(step Procedure, dt float32) {
+	p := step.GetOperation()
+
+	// 1. Acumula o progresso baseado no tempo real que passou
+	m.Progress += dt
+
+	// 2. Verifica se o tempo de duração foi atingido
+	// isso aqui não está sendo um processo contínuo
+	// mas tem um desempenho melhor (só calcular tudo ao final do tempo)
+	if m.Progress >= p.Duration {
+		// O PROCESSO TERMINOU: O objeto Procedure agora decide como se executar
+		step.Execute(m, dt)
+
+		// 3. Reseta o progresso para o próximo ciclo (ou próximo passo da chain)
+		m.Progress = 0
+	}
+}
+
+// calculateTemperature calcula a temperatura no próximo tick.
+// current: temperatura atual
+// heatGain: ganho de temperatura por tick enquanto acesa
+// retorna: nova temperatura após um tick
+func calculateTemperature(current, heatGain float32, dissipation float32) float32 {
+	const Tenv = 21.0
+
+	// Tempo de meia-vida em ticks para a diferença T - Tenv.
+	// Ajuste aqui para alterar quão rápido a fornalha dissipa calor.
+	// Ex.: dissipation = 50 → dissipa mais devagar; dissipation = 10 → mais rápido.
+
+	// taxa de dissipação por tick derivada da meia-vida:
+	// fator de retenção por tick = 2^(-1/tHalf)
+	retain := math.Pow(2.0, -1.0/float64(dissipation))
+	k := 1.0 - retain // fração perdida por tick
+
+	// Atualiza: acumula ganho e aplica dissipação em relação ao ambiente
+	delta := float64(current - Tenv)
+	delta = delta*(1.0-k) + float64(heatGain) // primeiro aplica retenção, depois adiciona ganho
+	// equivalência ao modelo T_next = Tenv + (T_current - Tenv)*(1-k) + heatGain
+
+	return float32(Tenv + delta)
+}
+
+// findProcedure busca a operação pelo ID em todos os registros conhecidos.
+func findProcedure(id OperationID) (Procedure, error) {
+	if op, exists := RefineOperations[id]; exists {
+		return op, nil
+	}
+	if op, exists := SynthesizeOperations[id]; exists {
+		return op, nil
+	}
+	if op, exists := TransformOperations[id]; exists {
+		return op, nil
+	}
+	return nil, fmt.Errorf("operador %s não encontrado em nenhum registro", id)
 }

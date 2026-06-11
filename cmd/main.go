@@ -149,6 +149,8 @@ func main() {
 	materials.LoadSubstancesFromJSON("../../Grind/assets/resources/substances.json")
 	materials.LoadMaterialsFromJSON("../../Grind/assets/resources/materials.json")
 
+	crafting.LoadDefinitionsFromJSON("../../Grind/assets/craft/definitions.json")
+
 	//printResidues(burnFuel("coal_burner", "coal", 10))
 
 	//printResidues(burnFuel("crude_oil_burner", "crude_oil", 10))
