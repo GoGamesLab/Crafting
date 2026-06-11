@@ -8,27 +8,6 @@ import (
 	materials "github.com/GoGamesLab/Materials/pkg"
 )
 
-// Exemplo de ID para o processo
-const (
-	CoalCombustionID OperationID = iota
-	CrudeOilCombustionID
-	ManualPressBarID
-	ManualPressPlateID
-	UraniumLeachingID
-	FuelEnrichmentID
-	NuclearFissionID
-)
-
-const (
-	EntropyID MachineID = iota
-	CoalBurnerID
-	CrudeOilBurnerID
-	IronBarForgerID
-	IronPlateForgerID
-	UraniumCentrifugeID
-	NuclearReactorID
-)
-
 var (
 	Machines             = make(map[MachineID]Machine)
 	RefineOperations     = make(map[OperationID]RefineOperation)
@@ -39,7 +18,7 @@ var (
 func init() {
 	RegisterOperation(RefineOperation{
 		Operation: Operation{
-			ID:               CoalCombustionID,
+			ID:               "coal_combustion",
 			Name:             "Combustão de Carvão",
 			RequiredTemp:     600.0, // Temperatura ideal de queima
 			ActivationTemp:   300.0, // FlashPoint do seu Carvão
@@ -60,7 +39,7 @@ func init() {
 	})
 	RegisterOperation(RefineOperation{
 		Operation: Operation{
-			ID:               CrudeOilCombustionID,
+			ID:               "crude_oil_combustion",
 			Name:             "Combustão de Óleo Crú",
 			RequiredTemp:     700.0, // Temperatura ideal de queima
 			ActivationTemp:   400.0, // FlashPoint do seu Óleo
@@ -81,7 +60,7 @@ func init() {
 	})
 	RegisterOperation(TransformOperation{
 		Operation: Operation{
-			ID:               ManualPressBarID,
+			ID:               "manual_press_bar",
 			Name:             "Prensa manual de metais em barras",
 			ActivationTemp:   20.0,
 			Duration:         15.0,
@@ -95,7 +74,7 @@ func init() {
 	})
 	RegisterOperation(TransformOperation{
 		Operation: Operation{
-			ID:               ManualPressPlateID,
+			ID:               "manual_press_plate",
 			Name:             "Prensa manual de metais em placas",
 			ActivationTemp:   20.0,
 			Duration:         15.0,
@@ -111,7 +90,7 @@ func init() {
 	// PROCESSO 1: Lixiviação/Refino Químico (Minério -> Yellowcake)
 	RegisterOperation(RefineOperation{
 		Operation: Operation{
-			ID:               UraniumLeachingID,
+			ID:               "uranium_leaching",
 			Name:             "Lixiviação Ácida de Urânio",
 			RequiredTemp:     80.0, // Processo químico aquecido
 			ActivationTemp:   20.0,
@@ -132,7 +111,7 @@ func init() {
 	// simulamos que o Yellowcake pré-tratado com flúor gera a barra final.
 	RegisterOperation(SynthesizeOperation{
 		Operation: Operation{
-			ID:               FuelEnrichmentID,
+			ID:               "nuclear_fuel_enrichment",
 			Name:             "Centrifugação e Fabricação de Célula Nuclear",
 			RequiredTemp:     60.0,
 			ActivationTemp:   20.0,
@@ -152,7 +131,7 @@ func init() {
 	// Consome a barra enriquecida, gera calor colossal e cospe a barra exaurida (lixo) no inventário.
 	RegisterOperation(RefineOperation{
 		Operation: Operation{
-			ID:               NuclearFissionID,
+			ID:               "nuclear_fission",
 			Name:             "Fissão Nuclear Controlada",
 			RequiredTemp:     900.0,  // Temperatura operacional ideal do reator
 			ActivationTemp:   200.0,  // Temperatura mínima de reação em cadeia autossustentável
@@ -167,63 +146,60 @@ func init() {
 			{Substance: "plutonium_oxide", Percentual: 30},
 		},
 	})
-
 	RegisterMachine(Machine{
-		ID:         EntropyID,
+		ID:         "entropy",
 		Name:       "Entropia",
 		Heat:       21.0,
 		Procedures: []Procedure{},
 	})
 	RegisterMachine(Machine{
-		ID:   CoalBurnerID,
+		ID:   "coal_burner",
 		Name: "Fogueira de Acampamento",
 		Heat: 310.0, // Iniciada com um fósforo (acima dos 300°C de ativação)
 		Procedures: []Procedure{
-			RefineOperations[CoalCombustionID], // A fogueira está configurada para queimar carvão
+			RefineOperations["coal_combustion"], // A fogueira está configurada para queimar carvão
 		},
 		EnergyBuffer: nil,
 	})
 	RegisterMachine(Machine{
-		ID:   CrudeOilBurnerID,
+		ID:   "crude_oil_burner",
 		Name: "Tambor de Óleo",
 		Heat: 310.0, // Iniciada com um fósforo (abaixo dos 400°C de ativação)
 		Procedures: []Procedure{
-			RefineOperations[CrudeOilCombustionID], // A fogueira está configurada para queimar óleo crú
+			RefineOperations["crude_oil_combustion"], // A fogueira está configurada para queimar óleo crú
 		},
 		EnergyBuffer: nil,
 	})
-	// TODO: vou precisar de um energy manager, mas percebi agora que a fonte produtora de energia, como o reator
-	// por exemplo, consome combustível e não possue inventário
 	RegisterMachine(Machine{
-		ID:   IronBarForgerID,
+		ID:   "iron_bar_forger",
 		Name: "Prensa Manual de Barras",
 		Heat: 25.0, // Temperatura ambiente
 		Procedures: []Procedure{
 			// Operação que custa 500 Joules, mas gera calor interno por atrito (BaseEnergyChange = 5)
-			TransformOperations[ManualPressBarID],
+			TransformOperations["manual_press_bar"],
 		},
 		EnergyBuffer: energy.NewBattery(2000), // Consegue guardar até 4 ticks de buffer de energia
 		TypeHint:     "electric",
 	})
 
 	RegisterMachine(Machine{
-		ID:   UraniumCentrifugeID,
+		ID:   "uranium_centrifuge",
 		Name: "Centrífuga de Enriquecimento de Uranium",
 		Heat: 21.0,
 		Procedures: []Procedure{
-			SynthesizeOperations[FuelEnrichmentID],
+			SynthesizeOperations["nuclear_fuel_enrichment"],
 		},
 		EnergyBuffer: energy.NewBattery(1000000),
 		TypeHint:     "electric",
 	})
 
 	RegisterMachine(Machine{
-		ID:   NuclearReactorID,
+		ID:   "nuclear_reactor",
 		Name: "Reator Nuclear de Fissão RBMK-1000",
 		Heat: 21.0, // Começa em temperatura ambiente
 		Procedures: []Procedure{
 			// O reator executa a operação de fissão nuclear se houver combustível no Supply
-			RefineOperations[NuclearFissionID],
+			RefineOperations["nuclear_fission"],
 		},
 		EnergyBuffer: energy.NewBattery(1000000), // Outras máquinas (Turbinas a Vapor) vão sugar o calor dele.
 		TypeHint:     "heat",                     // O output/natureza principal desta máquina é térmico
@@ -232,7 +208,7 @@ func init() {
 
 func RegisterMachine(m Machine) error {
 	if _, exists := Machines[m.ID]; exists {
-		return fmt.Errorf("🧨 Máquina com ID %d já registrada", m.ID)
+		return fmt.Errorf("🧨 Máquina com ID %s já registrada", m.ID)
 	}
 
 	m.Supply = &Supply{
@@ -257,7 +233,7 @@ func (m *Machine) Stored() energy.EnergyUnit { return m.EnergyBuffer.Stored() }
 func registerOp[T Procedure](store map[OperationID]T, op T) error {
 	id := op.GetOperation().ID
 	if _, exists := store[id]; exists {
-		return fmt.Errorf("🧨 Operação com ID %d já registrada", id)
+		return fmt.Errorf("🧨 Operação com ID %s já registrada", id)
 	}
 	store[id] = op
 	return nil
@@ -281,6 +257,6 @@ func GetMachine(id MachineID) *Machine {
 		return &m
 	}
 
-	m := Machines[EntropyID]
+	m := Machines["entropy"]
 	return &m // Fallback seguro
 }

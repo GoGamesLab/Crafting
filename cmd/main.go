@@ -33,7 +33,7 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 
 	// 1. Instancia o Reator Nuclear
 	//reactor := energy.NewUraniumReactor(0.75, 1000000, 10.0)
-	reactor := crafting.GetMachine(crafting.NuclearReactorID)
+	reactor := crafting.GetMachine("nuclear_reactor")
 	// produz um mínimo inicial com combustível "importado"
 	fuel, _ := materials.GetMaterial("leu_fuel_rod")
 	crafting.Store(reactor, fuel.ID, 1)
@@ -49,7 +49,7 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 	// produzir combustível para o reator
 	// a centrífuga não está funcionando por falta de energia!
 	// será que consigo usar o reator?
-	centrifuge := crafting.GetMachine(crafting.UraniumCentrifugeID)
+	centrifuge := crafting.GetMachine("uranium_centrifuge")
 	energyManager.RegisterNode("centrifuge-1", centrifuge)
 	cabo1 := &energy.EnergyPipe{ThroughputPerTick: 1000, LossPerUnitDistance: 0.01, Distance: 5}
 	// tentei transferir do reator para a centrífuga, mas o reator ainda não tem energia!
@@ -67,7 +67,7 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 
 	energyManager.RegisterNode("reactor-1", reactor)
 
-	prensarMetaisOpID := crafting.OperationID(1001)
+	prensarMetaisOpID := crafting.OperationID("prensa_metais")
 	crafting.RegisterOperation(crafting.TransformOperation{
 		Operation: crafting.Operation{
 			ID:               prensarMetaisOpID,
@@ -84,7 +84,7 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 	})
 
 	// 2. Instancia uma Prensa Hidráulica/Elétrica (Consome 500 Joules/s, precisa de 50°C para operar)
-	prensaHidraulicaEletricaID := crafting.MachineID(1001)
+	prensaHidraulicaEletricaID := crafting.MachineID("prensa_hidraulica")
 	crafting.RegisterMachine(crafting.Machine{
 		ID:   prensaHidraulicaEletricaID,
 		Name: "Prensa Hidráulica Elétrica",
@@ -149,9 +149,9 @@ func main() {
 	materials.LoadSubstancesFromJSON("../../Grind/assets/resources/substances.json")
 	materials.LoadMaterialsFromJSON("../../Grind/assets/resources/materials.json")
 
-	//printResidues(burnFuel(crafting.CoalBurnerID, "coal", 10))
+	//printResidues(burnFuel("coal_burner", "coal", 10))
 
-	//printResidues(burnFuel(crafting.CrudeOilBurnerID, "crude_oil", 10))
+	//printResidues(burnFuel("crude_oil_burner", "crude_oil", 10))
 
 	machine, reactor := prensaMetais()
 	printResidues(machine)

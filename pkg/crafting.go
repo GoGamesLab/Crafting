@@ -10,8 +10,8 @@ import (
 	materials "github.com/GoGamesLab/Materials/pkg"
 )
 
-type OperationID uint16
-type MachineID uint16
+type OperationID string
+type MachineID string
 
 type Operation struct {
 	ID               OperationID
