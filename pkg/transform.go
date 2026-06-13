@@ -11,9 +11,10 @@ import (
 
 type TransformOperation struct {
 	Operation
-	Input  materials.MaterialID // Aqui entra o produto necessário num formato
-	Output materials.MaterialID // Aqui sai o produto em outro formato
-	Amount float32              // Quantidade processada por ciclo completo (Padrão: 1.0)
+	Input      materials.MaterialID // Aqui entra o produto necessário num formato
+	Output     materials.MaterialID // Aqui sai o produto em outro formato
+	Amount     float32              // Quantidade processada por ciclo completo (Padrão: 1.0)
+	Multiplier float32              // Quantidade de unidades de output gerada para cada unidade de input (Padrão: 1.0)
 }
 
 func (s TransformOperation) GetOperation() Operation { return s.Operation }
@@ -92,5 +93,6 @@ func (m *Machine) executeTransformationSlice(t TransformOperation, amount float3
 	// Adiciona o material transformado ao inventário de saída da máquina
 	// Se o seu sistema de Storage aceitar structs complexas, usamos a instância;
 	// Caso use IDs, passamos o ID e a quantidade.
-	m.Supply.Materials.AddItem(container.ItemID(transformedInstance.ID), amount)
+	// Adiciona a quantidade produzida por unidade processada
+	m.Supply.Materials.AddItem(container.ItemID(transformedInstance.ID), amount*t.Multiplier)
 }
