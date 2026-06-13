@@ -29,7 +29,11 @@ func burnFuel(machineID crafting.MachineID, fuelID materials.MaterialID, amount 
 
 func prensaMetais() (crafting.Supply, crafting.Supply) {
 	energyManager := energy.EnergyManagerInstance()
-	energyManager.RegisterConverter(energy.NewDynamo(0.85))
+	dynamo, err := energy.GetConverter("dynamo")
+	if err != nil {
+		Logger.Error(fmt.Sprintf("💣 conversor %s com erro", err))
+	}
+	energyManager.RegisterConverter(dynamo)
 
 	// 1. Instancia o Reator Nuclear
 	//reactor := energy.NewUraniumReactor(0.75, 1000000, 10.0)
@@ -150,6 +154,8 @@ func main() {
 	materials.LoadMaterialsFromJSON("../../Grind/assets/resources/materials.json")
 
 	crafting.LoadDefinitionsFromJSON("../../Grind/assets/craft/definitions.json")
+
+	energy.LoadConvertersFromJSON("../../Grind/assets/energy/converters.json")
 
 	//printResidues(burnFuel("coal_burner", "coal", 10))
 
