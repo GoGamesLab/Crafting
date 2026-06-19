@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"os"
 
@@ -57,14 +58,15 @@ type Supply struct {
 }
 
 type Machine struct {
-	ID           MachineID
-	Name         string
-	Heat         float32 // Temperatura interna atual
-	Procedures   []Procedure
-	Progress     float32
-	Supply       *Supply
-	EnergyBuffer *energy.Battery // Buffer interno de Joules recebidos da rede externa (opcional)
-	TypeHint     string          // "electric", "kinetic", "heat" -- o que o motor dela aceita
+	ID            MachineID
+	Name          string
+	Heat          float32 // Temperatura interna atual
+	Procedures    []Procedure
+	Progress      float32
+	Supply        *Supply
+	EnergyBuffer  *energy.Battery       // Buffer interno de Joules recebidos da rede externa (opcional)
+	TypeHint      string                // "electric", "kinetic", "heat" -- o que o motor dela aceita
+	EnergyManager *energy.EnergyManager // conversores
 }
 
 func energyRegime(m *Machine, p Operation, dt float32) (hasEnergy bool) {
@@ -80,13 +82,13 @@ func energyRegime(m *Machine, p Operation, dt float32) (hasEnergy bool) {
 
 		// Se não havia energia suficiente estocada no cabo/bateria interna,
 		// faz uma requisição direta ao EnergyManager em modo emergencial/contingência
-		if consumed < needed && energy.EnergyManagerInstance() != nil {
+		if consumed < needed && m.EnergyManager != nil {
 			req := energy.EnergyRequirement{
 				Amount:   needed - consumed,
 				TypeHint: m.TypeHint,
 			}
 			// Passa o ID da própria máquina na lista de nós preferenciais, se aplicável
-			provided, byproducts, err := energy.EnergyManagerInstance().SatisfyRequirement(req, []string{fmt.Sprint(m.ID)})
+			provided, byproducts, err := m.EnergyManager.SatisfyRequirement(req, []string{fmt.Sprint(m.ID)})
 			if err == nil {
 				consumed += provided
 				// Se o conversor elétrico gerou calor residual (perda do motor),
@@ -110,6 +112,81 @@ func energyRegime(m *Machine, p Operation, dt float32) (hasEnergy bool) {
 }
 
 func (m *Machine) Update(dt float32) {
+	var to energy.EnergyUnit
+	// executar processos do energy manager (se houver)
+	// o último processo vai guardar a energia convertida na bateria, e portanto teria
+	// que ser eletricidade (aqui a ordem importa)
+	// então, se tiver bateria, provavelmente deveria garantir que eletricidade seria
+	// o último conversor e ir lendo de trás para frente até chegar em eletricidade
+	//
+	// por exemplo, se eu tiver:
+	// [
+	//     {
+	//         "id": "boiler",
+	//         "from_type": "heat",
+	//         "to_type": "kinetic",
+	//         "efficiency": 0.85
+	//     },
+	//     {
+	//         "id": "dynamo",
+	//         "from_type": "kinetic",
+	//         "to_type": "electric",
+	//         "efficiency": 0.90
+	//     },
+	//     {
+	//         "id": "solar_panel",
+	//         "from_type": "solar",
+	//         "to_type": "electric",
+	//         "efficiency": 0.20
+	//     },
+	//     {
+	//         "id": "eolic",
+	//         "from_type": "wind",
+	//         "to_type": "kinetic",
+	//         "efficiency": 0.65
+	//     },
+	//     {
+	//         "id": "hydric",
+	//         "from_type": "water",
+	//         "to_type": "kinetic",
+	//         "efficiency": 0.75
+	//     }
+	// ]
+	// e se eu tiver bateria (EnergyBuffer), então procurar id "electric"
+	// se não tiver "electric" em to_type é erro (se tem bateria tem que ter eletricidade)
+	// a máquina possui o TypeHint que é a energia que ela produz
+	// {
+	//     "ID": "nuclear_reactor",
+	//     "Name": "Reator Nuclear de Fissão RBMK-1000",
+	//     "Heat": 21.0,
+	//     "ProcedureIDs": [
+	//         "nuclear_fission"
+	//     ],
+	//     "EnergyCapacity": 1000000,
+	//     "TypeHint": "heat"
+	// }
+	//
+	// assim eu tenho que partir de calor e chegar em eletricidade usando todos os conversores
+	// registrados para esta máquinas
+	//
+	// battery (electric) < dynamo(electric <- kinetic) < boiler(kinetic <- heat)
+	if m.EnergyManager != nil {
+		for _, c := range m.EnergyManager.EnergyConverters {
+			to = c.FromBase(1)
+			if _, err := c.ToBase(to); err != nil {
+				log.Fatalf("🧨 converter: %s", err)
+			}
+		}
+	}
+
+	// ao final, se houver energia elétrica, transferir para a bateria interna (se houver)
+	// mas como garantir que a bateria receba o tipo de energia desejado (sempre elétrica)?
+	if m.EnergyBuffer != nil {
+		m.EnergyBuffer.Produce(to)
+	}
+	// se não houver bateria interna, então basicamente o TypeHint da máquina muda para o que
+	// resultar em to
+
 	for _, step := range m.Procedures {
 		p := step.GetOperation()
 
@@ -124,6 +201,7 @@ func (m *Machine) Update(dt float32) {
 			m.Heat += p.BaseEnergyChange * dt
 		}
 	}
+
 }
 
 func (m *Machine) GetSupply() Supply {

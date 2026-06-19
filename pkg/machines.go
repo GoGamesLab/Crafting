@@ -19,6 +19,7 @@ func RegisterMachine(m Machine) error {
 		return fmt.Errorf("🧨 Máquina com ID %s já registrada", m.ID)
 	}
 
+	m.EnergyManager = energy.NewEnergyManager()
 	m.Supply = &Supply{
 		Materials:  *container.NewStorage(),
 		Substances: *container.NewStorage(),
