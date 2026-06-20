@@ -7,12 +7,10 @@ import (
 	materials "github.com/GoGamesLab/Materials/pkg"
 )
 
-// Basicamente refinar é processar um material e decompor ele em seus constituintes
-
 type RefineOperation struct {
 	Operation
-	Input  materials.MaterialID  // Aqui entram os produtos necessários
-	Output []materials.Composite // Aqui saem as substâncias desejadas E os resíduos/excedentes (Escória/Gases)
+	Input  materials.MaterialID
+	Output []materials.Composite
 }
 
 func (d RefineOperation) GetOperation() Operation { return d.Operation }
@@ -35,14 +33,10 @@ func (m *Machine) finishRefination(d RefineOperation, dt float32) {
 		elements := substance.Reduce(quantity)
 		for id, quantity := range elements {
 			element, _ := materials.GetElement(id)
-			// se está muito quente, o elemento é consumido
 			if m.Heat >= element.BoilingPoint {
 				currentLoss := (1.0 - float32(math.Exp(-0.5*float64(m.Heat-element.BoilingPoint)))) * element.Volatility * 100.0 * dt
-				// aqui, adicionar a quantidade se já existir no inventário
 				Consume(m, materials.ElementID(id), currentLoss)
 			} else {
-				// não esquentou demais, acumula no inventário
-				// mas quando começar a esquentar deve queimar o inventário também!
 				Produce(m, materials.ElementID(id), quantity)
 			}
 		}

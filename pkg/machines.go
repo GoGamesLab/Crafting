@@ -19,7 +19,6 @@ func RegisterMachine(m Machine) error {
 		return fmt.Errorf("🧨 Máquina com ID %s já registrada", m.ID)
 	}
 
-	m.EnergyManager = energy.NewEnergyManager()
 	m.Supply = &Supply{
 		Materials:  *container.NewStorage(),
 		Substances: *container.NewStorage(),
@@ -30,15 +29,10 @@ func RegisterMachine(m Machine) error {
 	return nil
 }
 
-// Funções para EnergyNode e EnergyManagement ---------------------------------------------------->
+func (m Machine) SetupEnergyManager() {
+	m.EnergyManager = energy.NewEnergyManager()
+}
 
-func (m *Machine) Capacity() energy.EnergyUnit { return m.EnergyBuffer.Capacity() }
-
-func (m *Machine) Stored() energy.EnergyUnit { return m.EnergyBuffer.Stored() }
-
-// <-----------------------------------------------------------------------------------------------
-
-// Funções de manufatura
 func registerOp[T Procedure](store map[OperationID]T, op T) error {
 	id := op.GetOperation().ID
 	if _, exists := store[id]; exists {
@@ -67,5 +61,5 @@ func GetMachine(id MachineID) *Machine {
 	}
 
 	m := Machines["entropy"]
-	return &m // Fallback seguro
+	return &m
 }

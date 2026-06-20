@@ -5,12 +5,10 @@ import (
 	materials "github.com/GoGamesLab/Materials/pkg"
 )
 
-// Basicamente sintetizar é processar uma série de elementos e torná-los em materiais possíveis
-
 type SynthesizeOperation struct {
 	Operation
-	Input  []materials.Composite // Aqui entram as substâncias necessárias e ficam os resíduos/excedentes (Escória/Gases)
-	Output materials.MaterialID  // Aqui é informado o material desejado
+	Input  []materials.Composite
+	Output materials.MaterialID
 }
 
 func (s SynthesizeOperation) GetOperation() Operation { return s.Operation }
@@ -21,33 +19,28 @@ func (s SynthesizeOperation) Execute(m *Machine, dt float32) {
 }
 
 func (m *Machine) finishSynthesization(s SynthesizeOperation, dt float32) {
-	// Lógica:
-	// Obtém lista de materiais possíveis com os composites informados
 	possibleMats, err := materials.Compositions(s.Input)
 	if err != nil {
 		return
 	}
 	for _, possible := range possibleMats {
 		if s.Output == possible.ID {
-			// 1. Consome os itens (Composites) do estoque de entrada
-			// na proporção da composição do produto desejado (s.Output)
-			// 2. Cria o novo Material (ex: Barra de Aço)
 			material, err := materials.GetMaterial(s.Output)
 			if err != nil {
 				return
 			}
-			elements := material.Reduction(1) // calcula os elementos para sintetizar uma unidade
+			elements := material.Reduction(1)
 			for id, amount := range elements {
 				available := m.Supply.Substances.Items[container.ItemID(id)]
 				if amount > available {
-					return // não tem substância suficiente
+					return
 				} else {
-					Consume(m, id, amount) // consome o necessário da substância
+					Consume(m, id, amount)
 				}
 			}
-			Produce(m, material.ID, 1) // produz a unidade após consumir todas substâncias necessárias
+			Produce(m, material.ID, 1)
 
-			break // terminou de produzir o material desejado
+			break
 		}
 	}
 }
