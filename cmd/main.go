@@ -30,6 +30,7 @@ func burnFuel(machineID crafting.MachineID, fuelID materials.MaterialID, amount 
 func prensaMetais() (crafting.Supply, crafting.Supply) {
 	reactor := crafting.GetMachine("nuclear_reactor")
 	reactor.SetupEnergyManager()
+	reactor.EnergyManager.RegisterSource("reactor-1", reactor)
 
 	dynamo, err := energy.GetConverter("dynamo")
 	if err != nil {
@@ -49,6 +50,7 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 	reactor.Update(1)
 
 	centrifuge := crafting.GetMachine("uranium_centrifuge")
+	centrifuge.SetEnergyManager(reactor.EnergyManager)
 	reactor.EnergyManager.RegisterSink("centrifuge-1", centrifuge)
 	crafting.Store(centrifuge, materials.SubstanceID("uranium_dioxide"), 9000)
 	crafting.Store(centrifuge, materials.SubstanceID("pure_iron"), 100)
@@ -91,6 +93,7 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 	})
 
 	prensa := crafting.GetMachine(prensaHidraulicaEletricaID)
+	prensa.SetEnergyManager(reactor.EnergyManager)
 	crafting.Store(prensa, materials.MaterialID("iron_bar"), 100)
 	crafting.Store(prensa, materials.MaterialID("iron_plate"), 0)
 
@@ -133,11 +136,10 @@ func main() {
 
 	energy.LoadConvertersFromJSON("../../Grind/assets/energy/converters.json")
 
-	//printResidues(burnFuel("coal_burner", "coal", 10))
-
-	//printResidues(burnFuel("crude_oil_burner", "crude_oil", 10))
-
 	machine, reactor := prensaMetais()
 	printResidues(machine)
 	printResidues(reactor)
+
+	printResidues(burnFuel("coal_burner", "coal", 10))
+	printResidues(burnFuel("crude_oil_burner", "crude_oil", 10))
 }

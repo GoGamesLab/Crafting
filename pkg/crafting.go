@@ -212,9 +212,7 @@ func (m *Machine) Produce(amount energy.EnergyUnit) energy.EnergyUnit {
 	return amount
 }
 
-func (m *Machine) Consume() energy.EnergyUnit {
-	return m.EnergyConsumption
-}
+func (m *Machine) Consume() energy.EnergyUnit { return m.EnergyConsumption }
 
 func (m *Machine) Capacity() energy.EnergyUnit { return m.EnergyProduction }
 
@@ -269,15 +267,15 @@ func (m *Machine) executeStep(step Procedure, dt float32) {
 }
 
 func calculateTemperature(current, heatGain float32, dissipation float32) float32 {
-	const Tenv = 21.0
+	const envTemperature = 21.0
 
 	retain := math.Pow(2.0, -1.0/float64(dissipation))
 	k := 1.0 - retain
 
-	delta := float64(current - Tenv)
+	delta := float64(current - envTemperature)
 	delta = delta*(1.0-k) + float64(heatGain)
 
-	return float32(Tenv + delta)
+	return float32(envTemperature + delta)
 }
 
 func findProcedure(id OperationID) (Procedure, error) {
@@ -290,5 +288,6 @@ func findProcedure(id OperationID) (Procedure, error) {
 	if op, exists := TransformOperations[id]; exists {
 		return op, nil
 	}
+
 	return nil, fmt.Errorf("operador %s não encontrado em nenhum registro", id)
 }

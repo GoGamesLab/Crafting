@@ -29,9 +29,9 @@ func RegisterMachine(m Machine) error {
 	return nil
 }
 
-func (m Machine) SetupEnergyManager() {
-	m.EnergyManager = energy.NewEnergyManager()
-}
+func (m *Machine) SetupEnergyManager() { m.EnergyManager = energy.NewEnergyManager() }
+
+func (m *Machine) SetEnergyManager(e *energy.EnergyManager) { m.EnergyManager = e }
 
 func registerOp[T Procedure](store map[OperationID]T, op T) error {
 	id := op.GetOperation().ID
