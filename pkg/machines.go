@@ -45,24 +45,15 @@ func RegisterOperation(p Procedure) error {
 }
 
 func (m *Machine) Update(dt float32) {
-	var to energy.EnergyUnit
-
 	if m.EnergyManager == nil {
 		log.Fatalf("💣 no energy manager for %s machine ", m.Name)
-	}
-
-	for _, c := range m.EnergyManager.EnergyConverters {
-		to = c.FromBase(1)
-		if _, err := c.ToBase(to); err != nil {
-			log.Fatalf("🧨 converter: %s", err)
-		}
 	}
 
 	for _, step := range m.Procedures {
 		p := step.GetOperation()
 
 		if m.Heat >= p.ActivationTemp {
-			m.EnergyManager.Update()
+			m.EnergyManager.Update(m.Converters)
 
 			m.executeStep(step, dt)
 
