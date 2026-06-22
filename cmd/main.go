@@ -15,6 +15,7 @@ var Logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level:
 
 func burnFuel(machineID crafting.MachineID, fuelID materials.MaterialID, amount float32) crafting.Supply {
 	machine := crafting.GetMachine(machineID)
+	machine.SetupEnergyManager()
 	material, _ := materials.GetMaterial(fuelID)
 
 	Logger.Info(fmt.Sprintf("Iniciando combustão: %f unidades de %s na máquina %s", amount, material.Name, machine.Name))
@@ -48,6 +49,8 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 			break
 		}
 	}
+
+	crafting.Store(reactor, fuel.ID, centrifuge.Supply.Materials.Items[container.ItemID(fuel.ID)])
 
 	reactor.EnergyManager.RegisterSource("reactor-1", reactor)
 
@@ -123,7 +126,9 @@ func main() {
 	energy.LoadConvertersFromJSON("../../Grind/assets/energy/converters.json")
 
 	machine, reactor := prensaMetais()
+	Logger.Info("Dados da prensa de metais")
 	printResidues(machine)
+	Logger.Info("Dados do reator nuclear")
 	printResidues(reactor)
 
 	printResidues(burnFuel("coal_burner", "coal", 10))
