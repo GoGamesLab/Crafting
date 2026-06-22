@@ -83,8 +83,8 @@ func (m *Machine) GetSupply() Supply {
 
 func (m *Machine) Type() string { return m.TypeHint }
 
-func (m *Machine) Produce(amount energy.EnergyUnit) energy.EnergyUnit {
-	var c energy.EnergyUnit = m.Capacity()
+func (m *Machine) GenerateEnergy(amount energy.EnergyUnit) energy.EnergyUnit {
+	var c energy.EnergyUnit = m.EnergyCapacity()
 	if amount > c {
 		return c
 	}
@@ -92,9 +92,9 @@ func (m *Machine) Produce(amount energy.EnergyUnit) energy.EnergyUnit {
 	return amount
 }
 
-func (m *Machine) Consume() energy.EnergyUnit { return m.Demand() }
+func (m *Machine) ConsumeEnergy() energy.EnergyUnit { return m.EnergyDemand() }
 
-func (m *Machine) Capacity() energy.EnergyUnit {
+func (m *Machine) EnergyCapacity() energy.EnergyUnit {
 	var c energy.EnergyUnit = 0
 	for _, p := range m.Procedures {
 		c += energy.EnergyUnit(p.GetOperation().BaseEnergyChange)
@@ -103,7 +103,7 @@ func (m *Machine) Capacity() energy.EnergyUnit {
 	return c
 }
 
-func (m *Machine) Demand() energy.EnergyUnit {
+func (m *Machine) EnergyDemand() energy.EnergyUnit {
 	var t energy.EnergyUnit = 0
 	for _, p := range m.Procedures {
 		t += p.GetOperation().EnergyCost
