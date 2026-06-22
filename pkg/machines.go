@@ -53,7 +53,7 @@ func (m *Machine) Update(dt float32) {
 		p := step.GetOperation()
 
 		if m.Heat >= p.ActivationTemp {
-			m.EnergyManager.Update(m.Converters)
+			m.EnergyManager.Update(m.Converters, energy.EnergyUnit(m.Heat))
 
 			m.executeStep(step, dt)
 
