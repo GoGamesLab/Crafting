@@ -14,7 +14,8 @@ type RefineOperation struct {
 }
 
 func (d RefineOperation) GetOperation() Operation { return d.Operation }
-func (d RefineOperation) Kind() string            { return "refine" }
+
+func (d RefineOperation) Kind() string { return "refine" }
 
 func (d RefineOperation) Execute(m *Machine, dt float32) {
 	m.finishRefination(d, dt)

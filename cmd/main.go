@@ -32,18 +32,6 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 	reactor.SetupEnergyManager()
 	reactor.EnergyManager.RegisterSource("reactor-1", reactor)
 
-	dynamo, err := energy.GetConverter("dynamo")
-	if err != nil {
-		Logger.Error(fmt.Sprintf("💣 conversor error: %s", err))
-	}
-	reactor.EnergyManager.RegisterConverter(dynamo)
-
-	boiler, err := energy.GetConverter("boiler")
-	if err != nil {
-		Logger.Error(fmt.Sprintf("💣 conversor error: %s", err))
-	}
-	reactor.EnergyManager.RegisterConverter(boiler)
-
 	fuel, _ := materials.GetMaterial("leu_fuel_rod")
 	crafting.Store(reactor, fuel.ID, 1)
 	reactor.Update(1)

@@ -3,8 +3,6 @@ package crafting
 import (
 	"encoding/json"
 	"fmt"
-	"log"
-	"math"
 	"os"
 
 	energy "github.com/GoGamesLab/Energy/pkg"
@@ -27,6 +25,10 @@ type MachineJSON struct {
 	Heat         float32   `json:"Heat"`
 	ProcedureIDs []string  `json:"ProcedureIDs"`
 	TypeHint     string    `json:"TypeHint"`
+	Converters   []struct {
+		ID       string `json:"ID"`
+		Quantity int    `json:"Quantity"`
+	} `json:"Converters"`
 }
 
 type OperationID string
@@ -64,43 +66,11 @@ type Machine struct {
 	Supply        *Supply
 	TypeHint      string
 	EnergyManager *energy.EnergyManager
+	Converters    []energy.Converter
 }
 
-func (m *Machine) Update(dt float32) {
-	var to energy.EnergyUnit
-
-	if m.EnergyManager == nil {
-		log.Fatalf("💣 no energy manager for %s machine ", m.Name)
-	}
-
-	for _, c := range m.EnergyManager.EnergyConverters {
-		to = c.FromBase(1)
-		if _, err := c.ToBase(to); err != nil {
-			log.Fatalf("🧨 converter: %s", err)
-		}
-	}
-
-	for _, step := range m.Procedures {
-		p := step.GetOperation()
-
-		if m.Heat >= p.ActivationTemp {
-			m.EnergyManager.Update()
-
-			m.executeStep(step, dt)
-
-			m.Heat = calculateTemperature(m.Heat, p.BaseEnergyChange*dt, p.Dissipation)
-		} else {
-			m.Heat += p.BaseEnergyChange * dt
-		}
-	}
-}
-
-func (m *Machine) GetSupply() Supply {
-	return Supply{
-		Materials:  m.Supply.Materials,
-		Substances: m.Supply.Substances,
-		Elements:   m.Supply.Elements,
-	}
+type ResourceID interface {
+	materials.ElementID | materials.SubstanceID | materials.MaterialID
 }
 
 func LoadDefinitionsFromJSON(filepath string) error {
@@ -129,7 +99,6 @@ func LoadDefinitionsFromJSON(filepath string) error {
 			if err := RegisterOperation(op); err != nil {
 				return err
 			}
-
 		case "synthesize":
 			var op SynthesizeOperation
 			if err := json.Unmarshal(rawOp, &op); err != nil {
@@ -138,7 +107,6 @@ func LoadDefinitionsFromJSON(filepath string) error {
 			if err := RegisterOperation(op); err != nil {
 				return err
 			}
-
 		case "transform":
 			var op TransformOperation
 			if err := json.Unmarshal(rawOp, &op); err != nil {
@@ -147,7 +115,6 @@ func LoadDefinitionsFromJSON(filepath string) error {
 			if err := RegisterOperation(op); err != nil {
 				return err
 			}
-
 		default:
 			return fmt.Errorf("🧨 Tipo de operação desconhecido no JSON: %s", typeCheck.Type)
 		}
@@ -159,6 +126,12 @@ func LoadDefinitionsFromJSON(filepath string) error {
 			Name:     mJSON.Name,
 			Heat:     mJSON.Heat,
 			TypeHint: mJSON.TypeHint,
+		}
+		for _, c := range mJSON.Converters {
+			m.Converters = append(m.Converters, energy.Converter{
+				ID:       energy.ConverterID(c.ID),
+				Quantity: c.Quantity,
+			})
 		}
 
 		for _, procID := range mJSON.ProcedureIDs {
@@ -177,10 +150,6 @@ func LoadDefinitionsFromJSON(filepath string) error {
 	return nil
 }
 
-type ResourceID interface {
-	materials.ElementID | materials.SubstanceID | materials.MaterialID
-}
-
 func Store[K ResourceID](m *Machine, id K, amount float32) {
 	if amount <= 0 {
 		return
@@ -194,37 +163,6 @@ func Store[K ResourceID](m *Machine, id K, amount float32) {
 	case *materials.MaterialID:
 		m.Supply.Materials.AddItem(container.ItemID(any(id).(materials.MaterialID)), amount)
 	}
-}
-
-func (m *Machine) Type() string { return m.TypeHint }
-
-func (m *Machine) Produce(amount energy.EnergyUnit) energy.EnergyUnit {
-	var c energy.EnergyUnit = m.Capacity()
-	if amount > c {
-		return c
-	}
-
-	return amount
-}
-
-func (m *Machine) Consume() energy.EnergyUnit { return m.Demand() }
-
-func (m *Machine) Capacity() energy.EnergyUnit {
-	var c energy.EnergyUnit = 0
-	for _, p := range m.Procedures {
-		c += energy.EnergyUnit(p.GetOperation().BaseEnergyChange)
-	}
-
-	return c
-}
-
-func (m *Machine) Demand() energy.EnergyUnit {
-	var t energy.EnergyUnit = 0
-	for _, p := range m.Procedures {
-		t += p.GetOperation().EnergyCost
-	}
-
-	return t
 }
 
 func Produce[K ResourceID](m *Machine, id K, amount float32) {
@@ -255,30 +193,6 @@ func Consume[K ResourceID](m *Machine, id K, amount float32) {
 	case *materials.MaterialID:
 		m.Supply.Materials.RemoveItem(container.ItemID(any(id).(materials.MaterialID)), amount/100)
 	}
-}
-
-func (m *Machine) executeStep(step Procedure, dt float32) {
-	p := step.GetOperation()
-
-	m.Progress += dt
-
-	if m.Progress >= p.Duration {
-		step.Execute(m, dt)
-
-		m.Progress = 0
-	}
-}
-
-func calculateTemperature(current, heatGain float32, dissipation float32) float32 {
-	const envTemperature = 21.0
-
-	retain := math.Pow(2.0, -1.0/float64(dissipation))
-	k := 1.0 - retain
-
-	delta := float64(current - envTemperature)
-	delta = delta*(1.0-k) + float64(heatGain)
-
-	return float32(envTemperature + delta)
 }
 
 func findProcedure(id OperationID) (Procedure, error) {
