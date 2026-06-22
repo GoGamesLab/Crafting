@@ -35,8 +35,6 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 
 	fuel, _ := materials.GetMaterial("leu_fuel_rod")
 	crafting.Store(reactor, fuel.ID, 1)
-	reactor.Update(1)
-	reactor.Update(1)
 
 	centrifuge := crafting.GetMachine("uranium_centrifuge")
 	centrifuge.SetEnergyManager(reactor.EnergyManager)
