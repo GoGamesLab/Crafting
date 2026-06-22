@@ -22,13 +22,11 @@ type OperationTypeCheck struct {
 }
 
 type MachineJSON struct {
-	ID                MachineID `json:"ID"`
-	Name              string    `json:"Name"`
-	Heat              float32   `json:"Heat"`
-	ProcedureIDs      []string  `json:"ProcedureIDs"`
-	EnergyConsumption float64   `json:"EnergyConsumption"`
-	EnergyProduction  float64   `json:"EnergyProduction"`
-	TypeHint          string    `json:"TypeHint"`
+	ID           MachineID `json:"ID"`
+	Name         string    `json:"Name"`
+	Heat         float32   `json:"Heat"`
+	ProcedureIDs []string  `json:"ProcedureIDs"`
+	TypeHint     string    `json:"TypeHint"`
 }
 
 type OperationID string
@@ -58,16 +56,14 @@ type Supply struct {
 }
 
 type Machine struct {
-	ID                MachineID
-	Name              string
-	Heat              float32
-	Procedures        []Procedure
-	Progress          float32
-	Supply            *Supply
-	EnergyConsumption energy.EnergyUnit
-	EnergyProduction  energy.EnergyUnit
-	TypeHint          string
-	EnergyManager     *energy.EnergyManager
+	ID            MachineID
+	Name          string
+	Heat          float32
+	Procedures    []Procedure
+	Progress      float32
+	Supply        *Supply
+	TypeHint      string
+	EnergyManager *energy.EnergyManager
 }
 
 func (m *Machine) Update(dt float32) {
@@ -159,12 +155,10 @@ func LoadDefinitionsFromJSON(filepath string) error {
 
 	for _, mJSON := range gameData.Machines {
 		m := Machine{
-			ID:                mJSON.ID,
-			Name:              mJSON.Name,
-			Heat:              mJSON.Heat,
-			EnergyConsumption: mJSON.EnergyConsumption,
-			EnergyProduction:  mJSON.EnergyProduction,
-			TypeHint:          mJSON.TypeHint,
+			ID:       mJSON.ID,
+			Name:     mJSON.Name,
+			Heat:     mJSON.Heat,
+			TypeHint: mJSON.TypeHint,
 		}
 
 		for _, procID := range mJSON.ProcedureIDs {
@@ -205,23 +199,32 @@ func Store[K ResourceID](m *Machine, id K, amount float32) {
 func (m *Machine) Type() string { return m.TypeHint }
 
 func (m *Machine) Produce(amount energy.EnergyUnit) energy.EnergyUnit {
-	if amount > m.EnergyProduction {
-		return m.EnergyProduction
+	var c energy.EnergyUnit = m.Capacity()
+	if amount > c {
+		return c
 	}
 
 	return amount
 }
 
-func (m *Machine) Consume() energy.EnergyUnit { return m.EnergyConsumption }
+func (m *Machine) Consume() energy.EnergyUnit { return m.Demand() }
 
-func (m *Machine) Capacity() energy.EnergyUnit { return m.EnergyProduction }
-
-func (m *Machine) Demand() energy.EnergyUnit {
-	if len(m.Procedures) == 0 {
-		return 0
+func (m *Machine) Capacity() energy.EnergyUnit {
+	var c energy.EnergyUnit = 0
+	for _, p := range m.Procedures {
+		c += energy.EnergyUnit(p.GetOperation().BaseEnergyChange)
 	}
 
-	return m.Procedures[0].GetOperation().EnergyCost
+	return c
+}
+
+func (m *Machine) Demand() energy.EnergyUnit {
+	var t energy.EnergyUnit = 0
+	for _, p := range m.Procedures {
+		t += p.GetOperation().EnergyCost
+	}
+
+	return t
 }
 
 func Produce[K ResourceID](m *Machine, id K, amount float32) {

@@ -87,9 +87,7 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 		Procedures: []crafting.Procedure{
 			crafting.TransformOperations[prensarMetaisOpID],
 		},
-		EnergyConsumption: 100,
-		EnergyProduction:  0,
-		TypeHint:          "electric",
+		TypeHint: "electric",
 	})
 
 	prensa := crafting.GetMachine(prensaHidraulicaEletricaID)
