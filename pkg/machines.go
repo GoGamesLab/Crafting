@@ -54,6 +54,7 @@ func (m *Machine) Update(dt float32) {
 
 		if m.Heat >= p.ActivationTemp {
 			m.EnergyManager.Update(m.Converters, energy.EnergyUnit(m.Heat))
+			m.Heat = 0
 
 			m.executeStep(step, dt)
 
