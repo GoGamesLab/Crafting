@@ -58,7 +58,6 @@ func buildReactor() *crafting.Machine {
 }
 
 func buildPrensa(em *energy.EnergyManager) *crafting.Machine {
-
 	prensa := crafting.GetMachine("iron_plate_forger")
 	prensa.SetEnergyManager(em)
 	crafting.Store(prensa, materials.MaterialID("iron_bar"), 100)
@@ -69,17 +68,43 @@ func buildPrensa(em *energy.EnergyManager) *crafting.Machine {
 	return prensa
 }
 
-func prensaMetais() (crafting.Supply, crafting.Supply) {
+func factory() (crafting.Supply, crafting.Supply) {
 	reactor := buildReactor()
-	prensa := buildPrensa(reactor.EnergyManager)
+	prensa1 := buildPrensa(reactor.EnergyManager)
+	prensa2 := buildPrensa(reactor.EnergyManager)
+	prensa3 := buildPrensa(reactor.EnergyManager)
+	prensa4 := buildPrensa(reactor.EnergyManager)
+	prensa5 := buildPrensa(reactor.EnergyManager)
 
 	dt := float32(1.0)
 	for range 90 {
 		reactor.Update(dt)
-		prensa.Update(dt)
+
+		prensa1.Update(dt)
+		prensa2.Update(dt)
+		prensa3.Update(dt)
+		prensa4.Update(dt)
+		prensa5.Update(dt)
 	}
 
-	return prensa.GetSupply(), reactor.GetSupply()
+	var wharehouse = &crafting.Supply{
+		Materials:  *container.NewStorage(),
+		Substances: *container.NewStorage(),
+		Elements:   *container.NewStorage(),
+	}
+	var store = func(m *crafting.Machine) {
+		for i, q := range m.Supply.Materials.Items {
+			wharehouse.Materials.AddItem(i, q)
+		}
+	}
+
+	store(prensa1)
+	store(prensa2)
+	store(prensa3)
+	store(prensa4)
+	store(prensa5)
+
+	return reactor.GetSupply(), *wharehouse
 }
 
 func printResidues(i crafting.Supply) {
@@ -106,9 +131,9 @@ func main() {
 
 	energy.LoadConvertersFromJSON("../../Grind/assets/energy/converters.json")
 
-	machine, reactor := prensaMetais()
-	printResidues(machine)
+	reactor, production := factory()
 	printResidues(reactor)
+	printResidues(production)
 
 	printResidues(burnFuel("coal_burner", "coal", 10))
 	printResidues(burnFuel("crude_oil_burner", "crude_oil", 10))
