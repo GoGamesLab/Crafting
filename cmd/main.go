@@ -23,12 +23,12 @@ func burnFuel(machineID crafting.MachineID, fuelID materials.MaterialID, amount 
 	crafting.Store(machine, fuelID, amount)
 	for machine.GetSupply().Materials.Items[container.ItemID(fuelID)] > 0 {
 		machine.Update(1)
-		Logger.Info(fmt.Sprintf("🔥 [%s] Temperatura: %.2f°C", machine.Name, machine.Heat))
+		//Logger.Info(fmt.Sprintf("🔥 [%s] Temperatura: %.2f°C", machine.Name, machine.Heat))
 	}
 	return machine.GetSupply()
 }
 
-func prensaMetais() (crafting.Supply, crafting.Supply) {
+func buildReactor() *crafting.Machine {
 	reactor := crafting.GetMachine("nuclear_reactor")
 	reactor.SetupEnergyManager()
 	reactor.EnergyManager.RegisterSource("reactor-1", reactor)
@@ -52,48 +52,31 @@ func prensaMetais() (crafting.Supply, crafting.Supply) {
 
 	reactor.EnergyManager.RegisterSource("reactor-1", reactor)
 
-	prensarMetaisOpID := crafting.OperationID("prensa_metais")
-	crafting.RegisterOperation(crafting.TransformOperation{
-		Operation: crafting.Operation{
-			ID:               prensarMetaisOpID,
-			Name:             "Prensa metais",
-			ActivationTemp:   20.0,
-			Duration:         2.0,
-			EnergyCost:       500,
-			BaseEnergyChange: 5.0,
-			Dissipation:      0.1,
-		},
-		Input:  "iron_bar",
-		Output: "iron_plate",
-		Amount: 1,
-	})
+	crafting.Store(reactor, fuel.ID, centrifuge.Supply.Materials.Items[container.ItemID(fuel.ID)])
 
-	prensaHidraulicaEletricaID := crafting.MachineID("prensa_hidraulica")
-	crafting.RegisterMachine(crafting.Machine{
-		ID:   prensaHidraulicaEletricaID,
-		Name: "Prensa Hidráulica Elétrica",
-		Heat: 25.0,
-		Procedures: []crafting.Procedure{
-			crafting.TransformOperations[prensarMetaisOpID],
-		},
-		TypeHint: "electric",
-	})
+	return reactor
+}
 
-	prensa := crafting.GetMachine(prensaHidraulicaEletricaID)
-	prensa.SetEnergyManager(reactor.EnergyManager)
+func buildPrensa(em *energy.EnergyManager) *crafting.Machine {
+
+	prensa := crafting.GetMachine("iron_plate_forger")
+	prensa.SetEnergyManager(em)
 	crafting.Store(prensa, materials.MaterialID("iron_bar"), 100)
 	crafting.Store(prensa, materials.MaterialID("iron_plate"), 0)
 
-	reactor.EnergyManager.RegisterSink("prensa-1", prensa)
+	em.RegisterSink("prensa-1", prensa)
+
+	return prensa
+}
+
+func prensaMetais() (crafting.Supply, crafting.Supply) {
+	reactor := buildReactor()
+	prensa := buildPrensa(reactor.EnergyManager)
 
 	dt := float32(1.0)
-	for i := range 15 {
-		reactor.Update(1)
-
+	for range 90 {
+		reactor.Update(dt)
 		prensa.Update(dt)
-
-		fmt.Printf("Tick %d -> Temp Prensa: %.2f°C | Temp Reator: %.2f°C \n",
-			i, prensa.Heat, reactor.Heat)
 	}
 
 	return prensa.GetSupply(), reactor.GetSupply()
@@ -124,9 +107,7 @@ func main() {
 	energy.LoadConvertersFromJSON("../../Grind/assets/energy/converters.json")
 
 	machine, reactor := prensaMetais()
-	Logger.Info("Dados da prensa de metais")
 	printResidues(machine)
-	Logger.Info("Dados do reator nuclear")
 	printResidues(reactor)
 
 	printResidues(burnFuel("coal_burner", "coal", 10))
