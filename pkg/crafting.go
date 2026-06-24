@@ -69,6 +69,11 @@ type Machine struct {
 	Converters    []energy.Converter
 }
 
+type Factory struct {
+	Machines  []Machine
+	Warehouse *Supply
+}
+
 type ResourceID interface {
 	materials.ElementID | materials.SubstanceID | materials.MaterialID
 }

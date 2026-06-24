@@ -10,10 +10,10 @@ import (
 )
 
 var (
-	Machines             = make(map[MachineID]Machine)
-	RefineOperations     = make(map[OperationID]RefineOperation)
-	SynthesizeOperations = make(map[OperationID]SynthesizeOperation)
-	TransformOperations  = make(map[OperationID]TransformOperation)
+	Machines             = make(map[MachineID]*Machine)
+	RefineOperations     = make(map[OperationID]*RefineOperation)
+	SynthesizeOperations = make(map[OperationID]*SynthesizeOperation)
+	TransformOperations  = make(map[OperationID]*TransformOperation)
 )
 
 func RegisterMachine(m Machine) error {
@@ -26,7 +26,7 @@ func RegisterMachine(m Machine) error {
 		Substances: *container.NewStorage(),
 		Elements:   *container.NewStorage(),
 	}
-	Machines[m.ID] = m
+	Machines[m.ID] = &m
 
 	return nil
 }
@@ -34,11 +34,11 @@ func RegisterMachine(m Machine) error {
 func RegisterOperation(p Procedure) error {
 	switch op := p.(type) {
 	case RefineOperation:
-		return registerOp(RefineOperations, op)
+		return registerOp(RefineOperations, &op)
 	case SynthesizeOperation:
-		return registerOp(SynthesizeOperations, op)
+		return registerOp(SynthesizeOperations, &op)
 	case TransformOperation:
-		return registerOp(TransformOperations, op)
+		return registerOp(TransformOperations, &op)
 	default:
 		return fmt.Errorf("🧨 Tipo de operação desconhecida: %T", p)
 	}
@@ -108,13 +108,52 @@ func (m *Machine) SetupEnergyManager() { m.EnergyManager = energy.NewEnergyManag
 
 func (m *Machine) SetEnergyManager(e *energy.EnergyManager) { m.EnergyManager = e }
 
-func GetMachine(id MachineID) *Machine {
+func GetMachineTemplate(id MachineID) *Machine {
 	if m, ok := Machines[id]; ok {
-		return &m
+		return m
 	}
 
 	m := Machines["entropy"]
-	return &m
+	return m
+}
+
+func GetNewMachine(id MachineID) (*Machine, error) {
+	templatePtr, exists := Machines[id]
+	if !exists {
+		templatePtr, exists = Machines["entropy"]
+		if !exists {
+			return nil, fmt.Errorf("máquina original e backup 'entropy' não encontrados")
+		}
+	}
+
+	template := *templatePtr
+	newMachine := Machine{
+		ID:       template.ID,
+		Name:     template.Name,
+		Heat:     template.Heat,
+		TypeHint: template.TypeHint,
+		Progress: 0.0,
+	}
+
+	if template.Procedures != nil {
+		newMachine.Procedures = make([]Procedure, len(template.Procedures))
+		copy(newMachine.Procedures, template.Procedures)
+	}
+
+	if template.Converters != nil {
+		newMachine.Converters = make([]energy.Converter, len(template.Converters))
+		copy(newMachine.Converters, template.Converters)
+	}
+
+	newMachine.Supply = &Supply{
+		Materials:  *container.NewStorage(),
+		Substances: *container.NewStorage(),
+		Elements:   *container.NewStorage(),
+	}
+
+	newMachine.EnergyManager = nil
+
+	return &newMachine, nil
 }
 
 func (m *Machine) executeStep(step Procedure, dt float32) {
@@ -148,4 +187,32 @@ func calculateTemperature(current, heatGain float32, dissipation float32) float3
 	delta = delta*(1.0-k) + float64(heatGain)
 
 	return float32(envTemperature + delta)
+}
+
+func GetNewFactory() *Factory {
+	f := &Factory{
+		Machines: make([]Machine, 0),
+		Warehouse: &Supply{
+			Materials:  *container.NewStorage(),
+			Substances: *container.NewStorage(),
+			Elements:   *container.NewStorage(),
+		},
+	}
+
+	return f
+}
+
+func (f *Factory) Update(dt float32) {
+	for _, m := range f.Machines {
+		m.Update(dt)
+	}
+}
+
+func (f *Factory) TransferToWarehouse() {
+	for _, m := range f.Machines {
+		for i, q := range m.Supply.Materials.Items {
+			f.Warehouse.Materials.AddItem(i, q)
+			m.Supply.Materials.RemoveItem(i, q)
+		}
+	}
 }

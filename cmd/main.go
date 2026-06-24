@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 
@@ -14,7 +15,10 @@ import (
 var Logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 func burnFuel(machineID crafting.MachineID, fuelID materials.MaterialID, amount float32) crafting.Supply {
-	machine := crafting.GetMachine(machineID)
+	machine, err := crafting.GetNewMachine(machineID)
+	if err != nil {
+		log.Fatalf("💣 error: %s", err)
+	}
 	machine.SetupEnergyManager()
 	material, _ := materials.GetMaterial(fuelID)
 
@@ -29,14 +33,20 @@ func burnFuel(machineID crafting.MachineID, fuelID materials.MaterialID, amount 
 }
 
 func buildReactor() *crafting.Machine {
-	reactor := crafting.GetMachine("nuclear_reactor")
+	reactor, err := crafting.GetNewMachine("nuclear_reactor")
+	if err != nil {
+		log.Fatalf("💣 error: %s", err)
+	}
 	reactor.SetupEnergyManager()
 	reactor.EnergyManager.RegisterSource("reactor-1", reactor)
 
 	fuel, _ := materials.GetMaterial("leu_fuel_rod")
 	crafting.Store(reactor, fuel.ID, 1)
 
-	centrifuge := crafting.GetMachine("uranium_centrifuge")
+	centrifuge, err := crafting.GetNewMachine("uranium_centrifuge")
+	if err != nil {
+		log.Fatalf("💣 error: %s", err)
+	}
 	centrifuge.SetEnergyManager(reactor.EnergyManager)
 	reactor.EnergyManager.RegisterSink("centrifuge-1", centrifuge)
 	crafting.Store(centrifuge, materials.SubstanceID("uranium_dioxide"), 9000)
@@ -57,54 +67,38 @@ func buildReactor() *crafting.Machine {
 	return reactor
 }
 
-func buildPrensa(em *energy.EnergyManager) *crafting.Machine {
-	prensa := crafting.GetMachine("iron_plate_forger")
+func buildPrensa(em *energy.EnergyManager) crafting.Machine {
+	prensa, err := crafting.GetNewMachine("iron_plate_forger")
+	if err != nil {
+		panic(err)
+	}
 	prensa.SetEnergyManager(em)
 	crafting.Store(prensa, materials.MaterialID("iron_bar"), 100)
 	crafting.Store(prensa, materials.MaterialID("iron_plate"), 0)
 
 	em.RegisterSink("prensa-1", prensa)
 
-	return prensa
+	return *prensa
 }
 
 func factory() (crafting.Supply, crafting.Supply) {
+	f := crafting.GetNewFactory()
+
+	const machines = 1
 	reactor := buildReactor()
-	prensa1 := buildPrensa(reactor.EnergyManager)
-	prensa2 := buildPrensa(reactor.EnergyManager)
-	prensa3 := buildPrensa(reactor.EnergyManager)
-	prensa4 := buildPrensa(reactor.EnergyManager)
-	prensa5 := buildPrensa(reactor.EnergyManager)
+	for range machines {
+		f.Machines = append(f.Machines, buildPrensa(reactor.EnergyManager))
+	}
 
 	dt := float32(1.0)
 	for range 90 {
 		reactor.Update(dt)
-
-		prensa1.Update(dt)
-		prensa2.Update(dt)
-		prensa3.Update(dt)
-		prensa4.Update(dt)
-		prensa5.Update(dt)
+		f.Update(dt)
 	}
 
-	var wharehouse = &crafting.Supply{
-		Materials:  *container.NewStorage(),
-		Substances: *container.NewStorage(),
-		Elements:   *container.NewStorage(),
-	}
-	var store = func(m *crafting.Machine) {
-		for i, q := range m.Supply.Materials.Items {
-			wharehouse.Materials.AddItem(i, q)
-		}
-	}
+	f.TransferToWarehouse()
 
-	store(prensa1)
-	store(prensa2)
-	store(prensa3)
-	store(prensa4)
-	store(prensa5)
-
-	return reactor.GetSupply(), *wharehouse
+	return reactor.GetSupply(), *f.Warehouse
 }
 
 func printResidues(i crafting.Supply) {
@@ -132,8 +126,8 @@ func main() {
 	energy.LoadConvertersFromJSON("../../Grind/assets/energy/converters.json")
 
 	reactor, production := factory()
-	printResidues(reactor)
 	printResidues(production)
+	printResidues(reactor)
 
 	printResidues(burnFuel("coal_burner", "coal", 10))
 	printResidues(burnFuel("crude_oil_burner", "crude_oil", 10))
