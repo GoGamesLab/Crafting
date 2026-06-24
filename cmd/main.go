@@ -62,8 +62,6 @@ func buildReactor() *crafting.Machine {
 
 	reactor.EnergyManager.RegisterSource("reactor-1", reactor)
 
-	crafting.Store(reactor, fuel.ID, centrifuge.Supply.Materials.Items[container.ItemID(fuel.ID)])
-
 	return reactor
 }
 
