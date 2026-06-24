@@ -69,8 +69,12 @@ type Machine struct {
 	Converters    []energy.Converter
 }
 
+type Line struct {
+	Machines []*Machine
+}
+
 type Factory struct {
-	Machines  []*Machine
+	Lines     []Line
 	Warehouse *Supply
 }
 

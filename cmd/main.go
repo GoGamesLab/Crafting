@@ -32,6 +32,7 @@ func burnFuel(machineID crafting.MachineID, fuelID materials.MaterialID, amount 
 	return machine.GetSupply()
 }
 
+// TODO: testar com um reator com energia insuficiente para alimentar a fábrica
 func buildReactor() *crafting.Machine {
 	reactor, err := crafting.GetNewMachine("nuclear_reactor")
 	if err != nil {
@@ -53,7 +54,7 @@ func buildReactor() *crafting.Machine {
 	crafting.Store(centrifuge, materials.SubstanceID("pure_iron"), 100)
 	for true {
 		centrifuge.Update(1)
-		if centrifuge.Supply.Materials.Items[container.ItemID("leu_fuel_rod")] >= 10 {
+		if centrifuge.Supply.Materials.Items[container.ItemID("leu_fuel_rod")] >= 0.001 {
 			break
 		}
 	}
@@ -80,12 +81,15 @@ func buildPrensa(em *energy.EnergyManager) *crafting.Machine {
 }
 
 func factory() (crafting.Supply, crafting.Supply) {
+	// TODO: testar com um reator com energia insuficiente para alimentar a fábrica
+	reactor := buildReactor()
+
 	f := crafting.GetNewFactory()
 
-	const machines = 1
-	reactor := buildReactor()
+	const machines = 1000
 	for range machines {
-		f.Machines = append(f.Machines, buildPrensa(reactor.EnergyManager))
+		f.Lines = append(f.Lines, crafting.Line{})
+		f.Lines[0].Machines = append(f.Lines[0].Machines, buildPrensa(reactor.EnergyManager))
 	}
 
 	dt := float32(1.0)

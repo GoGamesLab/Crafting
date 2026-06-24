@@ -191,7 +191,7 @@ func calculateTemperature(current, heatGain float32, dissipation float32) float3
 
 func GetNewFactory() *Factory {
 	f := &Factory{
-		Machines: make([]*Machine, 0),
+		Lines: make([]Line, 0),
 		Warehouse: &Supply{
 			Materials:  *container.NewStorage(),
 			Substances: *container.NewStorage(),
@@ -203,16 +203,24 @@ func GetNewFactory() *Factory {
 }
 
 func (f *Factory) Update(dt float32) {
-	for _, m := range f.Machines {
-		m.Update(dt)
+	for _, l := range f.Lines {
+		for _, m := range l.Machines {
+			// TODO: a primeira máquina da primeira linha recebe de Warehouse ou da máquina anterior (se não for a primeira)
+			m.Update(dt)
+			// TODO: transfere para a máquina seguinte (se houver) ou para Warehouse se for a última máquina da linha
+			// TODO: poderia simplificar e todas as máquinas usarem Warehouse
+		}
+
 	}
 }
 
 func (f *Factory) TransferToWarehouse() {
-	for _, m := range f.Machines {
-		for i, q := range m.Supply.Materials.Items {
-			f.Warehouse.Materials.AddItem(i, q)
-			m.Supply.Materials.RemoveItem(i, q)
+	for _, l := range f.Lines {
+		for _, m := range l.Machines {
+			for i, q := range m.Supply.Materials.Items {
+				f.Warehouse.Materials.AddItem(i, q)
+				m.Supply.Materials.RemoveItem(i, q)
+			}
 		}
 	}
 }
