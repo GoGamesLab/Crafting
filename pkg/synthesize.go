@@ -28,7 +28,7 @@ func (m *Machine) finishSynthesization(s SynthesizeOperation, dt float32) {
 			if err != nil {
 				return
 			}
-			elements := material.Reduction(1)
+			elements := material.Reduction(dt)
 			for id, amount := range elements {
 				available := m.Supply.Substances.Items[container.ItemID(id)]
 				if amount > available {
@@ -37,7 +37,7 @@ func (m *Machine) finishSynthesization(s SynthesizeOperation, dt float32) {
 					Consume(m, id, amount)
 				}
 			}
-			Produce(m, material.ID, 1)
+			Produce(m, material.ID, dt)
 
 			break
 		}
