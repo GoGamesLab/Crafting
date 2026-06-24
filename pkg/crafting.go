@@ -70,7 +70,7 @@ type Machine struct {
 }
 
 type Factory struct {
-	Machines  []Machine
+	Machines  []*Machine
 	Warehouse *Supply
 }
 

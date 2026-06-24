@@ -191,7 +191,7 @@ func calculateTemperature(current, heatGain float32, dissipation float32) float3
 
 func GetNewFactory() *Factory {
 	f := &Factory{
-		Machines: make([]Machine, 0),
+		Machines: make([]*Machine, 0),
 		Warehouse: &Supply{
 			Materials:  *container.NewStorage(),
 			Substances: *container.NewStorage(),

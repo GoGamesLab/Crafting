@@ -65,7 +65,7 @@ func buildReactor() *crafting.Machine {
 	return reactor
 }
 
-func buildPrensa(em *energy.EnergyManager) crafting.Machine {
+func buildPrensa(em *energy.EnergyManager) *crafting.Machine {
 	prensa, err := crafting.GetNewMachine("iron_plate_forger")
 	if err != nil {
 		panic(err)
@@ -76,7 +76,7 @@ func buildPrensa(em *energy.EnergyManager) crafting.Machine {
 
 	em.RegisterSink("prensa-1", prensa)
 
-	return *prensa
+	return prensa
 }
 
 func factory() (crafting.Supply, crafting.Supply) {
