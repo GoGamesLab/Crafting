@@ -159,48 +159,48 @@ func LoadDefinitionsFromJSON(filepath string) error {
 	return nil
 }
 
-func Store[K ResourceID](m *Machine, id K, amount float32) {
+func Store[K ResourceID](s *Supply, id K, amount float32) {
 	if amount <= 0 {
 		return
 	}
 
 	switch any(new(K)).(type) {
 	case *materials.ElementID:
-		m.Supply.Elements.AddItem(container.ItemID(any(id).(materials.ElementID)), amount)
+		s.Elements.AddItem(container.ItemID(any(id).(materials.ElementID)), amount)
 	case *materials.SubstanceID:
-		m.Supply.Substances.AddItem(container.ItemID(any(id).(materials.SubstanceID)), amount)
+		s.Substances.AddItem(container.ItemID(any(id).(materials.SubstanceID)), amount)
 	case *materials.MaterialID:
-		m.Supply.Materials.AddItem(container.ItemID(any(id).(materials.MaterialID)), amount)
+		s.Materials.AddItem(container.ItemID(any(id).(materials.MaterialID)), amount)
 	}
 }
 
-func Produce[K ResourceID](m *Machine, id K, amount float32) {
+func Produce[K ResourceID](s *Supply, id K, amount float32) {
 	if amount <= 0 {
 		return
 	}
 
 	switch any(new(K)).(type) {
 	case *materials.ElementID:
-		m.Supply.Elements.AddItem(container.ItemID(any(id).(materials.ElementID)), amount/100)
+		s.Elements.AddItem(container.ItemID(any(id).(materials.ElementID)), amount/100)
 	case *materials.SubstanceID:
-		m.Supply.Substances.AddItem(container.ItemID(any(id).(materials.SubstanceID)), amount/100)
+		s.Substances.AddItem(container.ItemID(any(id).(materials.SubstanceID)), amount/100)
 	case *materials.MaterialID:
-		m.Supply.Materials.AddItem(container.ItemID(any(id).(materials.MaterialID)), amount/100)
+		s.Materials.AddItem(container.ItemID(any(id).(materials.MaterialID)), amount/100)
 	}
 }
 
-func Consume[K ResourceID](m *Machine, id K, amount float32) {
+func Consume[K ResourceID](s *Supply, id K, amount float32) {
 	if amount <= 0 {
 		return
 	}
 
 	switch any(new(K)).(type) {
 	case *materials.ElementID:
-		m.Supply.Elements.RemoveItem(container.ItemID(any(id).(materials.ElementID)), amount/100)
+		s.Elements.RemoveItem(container.ItemID(any(id).(materials.ElementID)), amount/100)
 	case *materials.SubstanceID:
-		m.Supply.Substances.RemoveItem(container.ItemID(any(id).(materials.SubstanceID)), amount/100)
+		s.Substances.RemoveItem(container.ItemID(any(id).(materials.SubstanceID)), amount/100)
 	case *materials.MaterialID:
-		m.Supply.Materials.RemoveItem(container.ItemID(any(id).(materials.MaterialID)), amount/100)
+		s.Materials.RemoveItem(container.ItemID(any(id).(materials.MaterialID)), amount/100)
 	}
 }
 

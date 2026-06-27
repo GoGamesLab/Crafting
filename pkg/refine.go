@@ -17,14 +17,12 @@ func (d RefineOperation) GetOperation() Operation { return d.Operation }
 
 func (d RefineOperation) Kind() string { return "refine" }
 
-func (d RefineOperation) Execute(m *Machine, dt float32) {
-	m.finishRefination(d, dt)
-}
+func (d RefineOperation) Execute(m *Machine, dt float32) { m.finishRefination(d, dt) }
 
 func (m *Machine) finishRefination(d RefineOperation, dt float32) {
 	material, _ := materials.GetMaterial(materials.MaterialID(d.Input))
-	q, ok := m.Supply.Materials.RemoveItem(container.ItemID(material.ID), 1)
-	if q == 0 || !ok {
+	q, _ := m.Supply.Materials.RemoveItem(container.ItemID(material.ID), 1)
+	if q == 0 {
 		return
 	}
 
@@ -36,9 +34,9 @@ func (m *Machine) finishRefination(d RefineOperation, dt float32) {
 			element, _ := materials.GetElement(id)
 			if m.Heat >= element.BoilingPoint {
 				currentLoss := (1.0 - float32(math.Exp(-0.5*float64(m.Heat-element.BoilingPoint)))) * element.Volatility * 100.0 * dt
-				Consume(m, materials.ElementID(id), currentLoss)
+				Consume(m.Supply, materials.ElementID(id), currentLoss)
 			} else {
-				Produce(m, materials.ElementID(id), quantity)
+				Produce(m.Supply, materials.ElementID(id), quantity*q)
 			}
 		}
 	}

@@ -54,6 +54,9 @@ func (m *Machine) Update(dt float32) {
 
 		if m.Heat >= p.ActivationTemp {
 			m.EnergyManager.Update(m.Converters, energy.EnergyUnit(m.Heat))
+			if m.EnergyManager.GetEnergy() == 0 {
+				return
+			}
 			m.Heat = 0
 
 			m.executeStep(step, dt)
@@ -145,15 +148,21 @@ func GetNewMachine(id MachineID) (*Machine, error) {
 		copy(newMachine.Converters, template.Converters)
 	}
 
-	newMachine.Supply = &Supply{
+	newMachine.EnergyManager = nil
+
+	return &newMachine, nil
+}
+
+func (m *Machine) SetupSupply() {
+	m.Supply = &Supply{
 		Materials:  *container.NewStorage(),
 		Substances: *container.NewStorage(),
 		Elements:   *container.NewStorage(),
 	}
+}
 
-	newMachine.EnergyManager = nil
-
-	return &newMachine, nil
+func (m *Machine) SetSupply(s *Supply) {
+	m.Supply = s
 }
 
 func (m *Machine) executeStep(step Procedure, dt float32) {
@@ -205,12 +214,8 @@ func GetNewFactory() *Factory {
 func (f *Factory) Update(dt float32) {
 	for _, l := range f.Lines {
 		for _, m := range l.Machines {
-			// TODO: a primeira máquina da primeira linha recebe de Warehouse ou da máquina anterior (se não for a primeira)
 			m.Update(dt)
-			// TODO: transfere para a máquina seguinte (se houver) ou para Warehouse se for a última máquina da linha
-			// TODO: poderia simplificar e todas as máquinas usarem Warehouse
 		}
-
 	}
 }
 
