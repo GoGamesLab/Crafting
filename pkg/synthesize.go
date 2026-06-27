@@ -1,6 +1,8 @@
 package crafting
 
 import (
+	"math"
+
 	container "github.com/GoGamesLab/Inventory/pkg"
 	materials "github.com/GoGamesLab/Materials/pkg"
 )
@@ -29,15 +31,14 @@ func (m *Machine) finishSynthesization(s SynthesizeOperation, dt float32) {
 				return
 			}
 			elements := material.Reduction(dt)
-			for id, amount := range elements {
+			var production float64 = math.Inf(1)
+			for id, needed := range elements {
 				available := m.Supply.Substances.Items[container.ItemID(id)]
-				if amount > available {
-					return
-				} else {
-					Consume(m, id, amount)
-				}
+				amount := available / needed
+				production = math.Min(float64(amount), float64(production))
+				Consume(m.Supply, id, amount)
 			}
-			Produce(m, material.ID, dt)
+			Produce(m.Supply, material.ID, float32(production)*100)
 
 			break
 		}
