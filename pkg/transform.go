@@ -59,7 +59,7 @@ func (m *Machine) finishTransformation(t TransformOperation, dt float32) {
 
 func (m *Machine) executeTransformationSlice(t TransformOperation, amount float32) {
 	removed, ok := m.Supply.Materials.RemoveItem(container.ItemID(t.Input), amount)
-	if !ok || removed <= 0 {
+	if !ok || removed < 0 {
 		return
 	}
 
