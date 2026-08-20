@@ -1,5 +1,7 @@
 module github.com/GoGamesLab/Crafting
 
+go 1.27
+
 require (
 	github.com/GoGamesLab/Energy v0.0.0
 	github.com/GoGamesLab/Inventory v0.0.0
@@ -11,5 +13,3 @@ replace (
 	github.com/GoGamesLab/Inventory => ../Inventory
 	github.com/GoGamesLab/Materials => ../Materials
 )
-
-go 1.26.1
