@@ -1,6 +1,6 @@
 module github.com/GoGamesLab/Crafting
 
-go 1.27
+go 1.27.3
 
 require (
 	github.com/GoGamesLab/Energy v0.0.0
